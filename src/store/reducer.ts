@@ -92,6 +92,64 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         transactions: state.transactions.filter(t => t.id !== action.payload),
       };
 
+    case 'ADD_OVERDUE_HOLD':
+      return { ...state, overdueHolds: [...state.overdueHolds, action.payload] };
+
+    case 'DEFER_OVERDUE_HOLD':
+      return {
+        ...state,
+        overdueHolds: state.overdueHolds.map(h =>
+          h.expenseId === action.payload ? { ...h, deferCount: h.deferCount + 1 } : h
+        ),
+      };
+
+    case 'DISMISS_OVERDUE':
+      return {
+        ...state,
+        overdueHolds: state.overdueHolds.filter(h => h.expenseId !== action.payload),
+      };
+
+    case 'PAY_OVERDUE': {
+      const { expenseId, actualAmount, transaction } = action.payload;
+      return {
+        ...state,
+        overdueHolds: state.overdueHolds.filter(h => h.expenseId !== expenseId),
+        balance: {
+          currentBalance: state.balance.currentBalance - actualAmount,
+          lastUpdated: transaction.date,
+        },
+        transactions: [...state.transactions, transaction],
+      };
+    }
+
+    case 'PAY_EXPENSE':
+      return {
+        ...state,
+        balance: {
+          currentBalance: state.balance.currentBalance - action.payload.actualAmount,
+          lastUpdated: action.payload.transaction.date,
+        },
+        transactions: [...state.transactions, action.payload.transaction],
+      };
+
+    case 'QUICK_ADD_EXPENSE':
+      return {
+        ...state,
+        balance: {
+          currentBalance: state.balance.currentBalance - action.payload.amount,
+          lastUpdated: action.payload.transaction.date,
+        },
+        transactions: [...state.transactions, action.payload.transaction],
+      };
+
+    case 'RECORD_DFM_HISTORY': {
+      const history = [...state.dfmHistory, action.payload];
+      return { ...state, dfmHistory: history.length > 730 ? history.slice(-730) : history };
+    }
+
+    case 'SET_SUBSCRIPTION_LOG':
+      return { ...state, subscriptionLog: action.payload };
+
     case 'IMPORT_STATE':
       return action.payload;
   }

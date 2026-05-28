@@ -4,6 +4,8 @@ import { generateCashEvents } from './eventGenerator';
 import { generateDates } from './scheduler';
 import { getObservedHolidays, toDateKey } from './holidays';
 import { calculateBarBreakdown } from './barChart';
+import { computeEffectiveBalance } from './effectiveBalance';
+import { detectOverdueExpenses } from './overdueDetector';
 import {
   testIncome,
   testExpenses,
@@ -11,7 +13,7 @@ import {
   TEST_BALANCE,
   TEST_BUFFER,
 } from './testData';
-import type { Schedule } from './types';
+import type { Schedule, OverdueHold, Expense, Transaction } from './types';
 
 describe('Holidays', () => {
   it('should generate correct US federal holidays for 2026', () => {
@@ -237,5 +239,214 @@ describe('Bar Chart Breakdown', () => {
     for (const seg of breakdown.segments) {
       console.log(`${seg.label}: $${seg.amount.toFixed(2)} (${seg.type})`);
     }
+  });
+
+  it('should include amber overdue_hold segment when overdueHoldTotal > 0', () => {
+    const today = new Date(2026, 4, 25);
+    const todayKey = toDateKey(today);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    const dfm = calculateDfm(TEST_BALANCE, TEST_BUFFER, events, today);
+    const overdueHoldTotal = 200;
+    const breakdown = calculateBarBreakdown(
+      TEST_BALANCE,
+      dfm.dailyFreeMoney,
+      TEST_BUFFER,
+      events,
+      testCategories,
+      todayKey,
+      overdueHoldTotal
+    );
+
+    const holdSegment = breakdown.segments.find(s => s.type === 'overdue_hold');
+    expect(holdSegment).toBeDefined();
+    expect(holdSegment!.amount).toBe(200);
+    expect(holdSegment!.color).toBe('#fbbf24');
+    expect(holdSegment!.label).toBe('Pending Bills');
+  });
+
+  it('should NOT include overdue_hold segment when overdueHoldTotal is 0', () => {
+    const today = new Date(2026, 4, 25);
+    const todayKey = toDateKey(today);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    const dfm = calculateDfm(TEST_BALANCE, TEST_BUFFER, events, today);
+    const breakdown = calculateBarBreakdown(
+      TEST_BALANCE,
+      dfm.dailyFreeMoney,
+      TEST_BUFFER,
+      events,
+      testCategories,
+      todayKey,
+      0
+    );
+
+    const holdSegment = breakdown.segments.find(s => s.type === 'overdue_hold');
+    expect(holdSegment).toBeUndefined();
+  });
+});
+
+describe('Effective Balance', () => {
+  it('should subtract overdue holds from current balance', () => {
+    const holds: OverdueHold[] = [
+      { expenseId: 'e1', expenseName: 'Rent', amount: 800, originalDueDate: '2026-05-01', deferCount: 0, categoryId: 'cat-housing' },
+      { expenseId: 'e2', expenseName: 'Electric', amount: 45, originalDueDate: '2026-05-07', deferCount: 1, categoryId: 'cat-utilities' },
+    ];
+    expect(computeEffectiveBalance(1500, holds)).toBe(655);
+  });
+
+  it('should return full balance when no holds exist', () => {
+    expect(computeEffectiveBalance(1500, [])).toBe(1500);
+  });
+
+  it('should allow negative effective balance', () => {
+    const holds: OverdueHold[] = [
+      { expenseId: 'e1', expenseName: 'Big Bill', amount: 2000, originalDueDate: '2026-05-01', deferCount: 0, categoryId: '' },
+    ];
+    expect(computeEffectiveBalance(1500, holds)).toBe(-500);
+  });
+});
+
+describe('Overdue Detector', () => {
+  it('should detect overdue recurring expenses with no transaction', () => {
+    const today = new Date(2026, 4, 27); // May 27
+    const expenses: Expense[] = [
+      {
+        id: 'exp-test',
+        name: 'Test Bill',
+        amount: 100,
+        categoryId: 'cat-utilities',
+        type: 'recurring',
+        isVariable: false,
+        tier: 1,
+        isAutoCut: false,
+        schedule: {
+          frequency: 'monthly',
+          dayOfMonth: 15,
+          dayOfWeek: null,
+          startDate: '2026-01-01',
+          endDate: null,
+          weekendRule: 'as_is',
+          holidayRule: 'as_is',
+        },
+      },
+    ];
+    const holds = detectOverdueExpenses(expenses, [], [], [], today);
+    expect(holds.length).toBe(1);
+    expect(holds[0].expenseId).toBe('exp-test');
+    expect(holds[0].amount).toBe(100);
+    expect(holds[0].originalDueDate).toBe('2026-05-15');
+  });
+
+  it('should NOT flag expenses with a matching transaction', () => {
+    const today = new Date(2026, 4, 27);
+    const expenses: Expense[] = [
+      {
+        id: 'exp-test',
+        name: 'Test Bill',
+        amount: 100,
+        categoryId: 'cat-utilities',
+        type: 'recurring',
+        isVariable: false,
+        tier: 1,
+        isAutoCut: false,
+        schedule: {
+          frequency: 'monthly',
+          dayOfMonth: 15,
+          dayOfWeek: null,
+          startDate: '2026-01-01',
+          endDate: null,
+          weekendRule: 'as_is',
+          holidayRule: 'as_is',
+        },
+      },
+    ];
+    const transactions: Transaction[] = [
+      { id: 'tx-1', expenseId: 'exp-test', date: '2026-05-15', amount: 100, description: 'Test Bill', categoryId: 'cat-utilities', source: 'manual' },
+    ];
+    const holds = detectOverdueExpenses(expenses, transactions, [], [], today);
+    expect(holds.length).toBe(0);
+  });
+
+  it('should NOT flag expenses that already have a hold', () => {
+    const today = new Date(2026, 4, 27);
+    const expenses: Expense[] = [
+      {
+        id: 'exp-test',
+        name: 'Test Bill',
+        amount: 100,
+        categoryId: 'cat-utilities',
+        type: 'recurring',
+        isVariable: false,
+        tier: 1,
+        isAutoCut: false,
+        schedule: {
+          frequency: 'monthly',
+          dayOfMonth: 15,
+          dayOfWeek: null,
+          startDate: '2026-01-01',
+          endDate: null,
+          weekendRule: 'as_is',
+          holidayRule: 'as_is',
+        },
+      },
+    ];
+    const existingHolds: OverdueHold[] = [
+      { expenseId: 'exp-test', expenseName: 'Test Bill', amount: 100, originalDueDate: '2026-05-15', deferCount: 0, categoryId: 'cat-utilities' },
+    ];
+    const holds = detectOverdueExpenses(expenses, [], existingHolds, [], today);
+    expect(holds.length).toBe(0);
+  });
+
+  it('should skip subscription-type expenses', () => {
+    const today = new Date(2026, 4, 27);
+    const expenses: Expense[] = [
+      {
+        id: 'exp-sub',
+        name: 'Netflix',
+        amount: 15,
+        categoryId: 'cat-subscriptions',
+        type: 'subscription',
+        isVariable: false,
+        tier: 3,
+        isAutoCut: false,
+        schedule: {
+          frequency: 'monthly',
+          dayOfMonth: 10,
+          dayOfWeek: null,
+          startDate: '2026-01-01',
+          endDate: null,
+          weekendRule: 'as_is',
+          holidayRule: 'as_is',
+        },
+      },
+    ];
+    const holds = detectOverdueExpenses(expenses, [], [], [], today);
+    expect(holds.length).toBe(0);
+  });
+
+  it('should NOT flag expense due today (only past due)', () => {
+    const today = new Date(2026, 4, 15); // May 15 — same as due date
+    const expenses: Expense[] = [
+      {
+        id: 'exp-today',
+        name: 'Due Today',
+        amount: 50,
+        categoryId: '',
+        type: 'recurring',
+        isVariable: false,
+        tier: 2,
+        isAutoCut: false,
+        schedule: {
+          frequency: 'monthly',
+          dayOfMonth: 15,
+          dayOfWeek: null,
+          startDate: '2026-01-01',
+          endDate: null,
+          weekendRule: 'as_is',
+          holidayRule: 'as_is',
+        },
+      },
+    ];
+    const holds = detectOverdueExpenses(expenses, [], [], [], today);
+    expect(holds.length).toBe(0);
   });
 });

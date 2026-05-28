@@ -44,5 +44,10 @@ export function validateAppState(data: unknown): AppState {
     expenses: rawExpenses.map(migrateExpense),
     customHolidays: Array.isArray(obj.customHolidays) ? obj.customHolidays : [],
     transactions: Array.isArray(obj.transactions) ? obj.transactions : [],
+    overdueHolds: Array.isArray(obj.overdueHolds) ? obj.overdueHolds : [],
+    dfmHistory: Array.isArray(obj.dfmHistory) ? obj.dfmHistory : [],
+    subscriptionLog: obj.subscriptionLog && typeof (obj.subscriptionLog as Record<string, unknown>).lastProcessedDate === 'string'
+      ? obj.subscriptionLog as { lastProcessedDate: string }
+      : { lastProcessedDate: '' },
   };
 }

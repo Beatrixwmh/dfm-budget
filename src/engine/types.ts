@@ -99,6 +99,20 @@ export interface Transaction {
   source: 'manual' | 'auto';
 }
 
+export interface OverdueHold {
+  expenseId: string;
+  expenseName: string;
+  amount: number;
+  originalDueDate: string;
+  deferCount: number;
+  categoryId: string;
+}
+
+export interface DfmHistoryEntry {
+  date: string;
+  dfm: number;
+}
+
 export interface DfmResult {
   dailyFreeMoney: number;
   sustainableRate: number;
@@ -112,7 +126,7 @@ export interface BarSegment {
   amount: number;
   color: string;
   categoryId: string | null;
-  type: 'obligation' | 'future_reserves' | 'buffer' | 'free_money';
+  type: 'obligation' | 'future_reserves' | 'buffer' | 'free_money' | 'overdue_hold';
   funding?: {
     allocated: number;
     due: number;
@@ -134,4 +148,7 @@ export interface AppState {
   expenses: Expense[];
   customHolidays: CustomHoliday[];
   transactions: Transaction[];
+  overdueHolds: OverdueHold[];
+  dfmHistory: DfmHistoryEntry[];
+  subscriptionLog: { lastProcessedDate: string };
 }

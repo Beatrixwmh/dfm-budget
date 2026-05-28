@@ -6,7 +6,8 @@ export function calculateBarBreakdown(
   buffer: number,
   events: CashEvent[],
   categories: Category[],
-  today: string
+  today: string,
+  overdueHoldTotal: number = 0
 ): BarBreakdown {
   const categoryMap = new Map(categories.map(c => [c.id, c]));
 
@@ -98,6 +99,16 @@ export function calculateBarBreakdown(
       color: '#f59e0b',
       categoryId: null,
       type: 'buffer',
+    });
+  }
+
+  if (overdueHoldTotal > 0) {
+    segments.push({
+      label: 'Pending Bills',
+      amount: overdueHoldTotal,
+      color: '#fbbf24',
+      categoryId: null,
+      type: 'overdue_hold',
     });
   }
 

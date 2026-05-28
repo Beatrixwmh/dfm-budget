@@ -10,5 +10,8 @@ export function createDefaultState(): AppState {
     expenses: [],
     customHolidays: [],
     transactions: [],
+    overdueHolds: [],
+    dfmHistory: [],
+    subscriptionLog: { lastProcessedDate: '' },
   };
 }
