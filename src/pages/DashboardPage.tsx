@@ -4,6 +4,7 @@ import { formatCurrency, formatDate } from '../utils/format';
 import { ProjectedBalanceChart } from '../components/charts/ProjectedBalanceChart';
 import { BarBreakdownChart } from '../components/charts/BarBreakdownChart';
 import { CashEventsChart } from '../components/charts/CashEventsChart';
+import { UpcomingExpensesCard } from '../components/upcoming/UpcomingExpensesCard';
 
 export function DashboardPage() {
   const result = useDfmEngine();
@@ -63,6 +64,8 @@ export function DashboardPage() {
           </div>
         )}
       </div>
+
+      <UpcomingExpensesCard />
 
       <div className="rounded-xl bg-surface-raised p-4">
         <h3 className="mb-3 text-sm font-medium text-text-secondary">Projected Balance</h3>
