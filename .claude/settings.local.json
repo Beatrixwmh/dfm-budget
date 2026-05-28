@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__216e5aaf-1369-4059-9aa1-52a3fbfdad08__search_files",
+      "mcp__216e5aaf-1369-4059-9aa1-52a3fbfdad08__read_file_content",
+      "Read(//c/Users/beatr/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/4a764426-1d5e-4652-8525-1cfe187bb3e4/4638218d-539a-4104-a46c-15916ab6460b/skills/xlsx/**)",
+      "Bash(python -c ' *)",
+      "Bash(pip install *)",
+      "mcp__216e5aaf-1369-4059-9aa1-52a3fbfdad08__download_file_content",
+      "Bash(npm create *)",
+      "PowerShell(npm create vite@latest . -- --template react-ts)",
+      "PowerShell(\\(Get-Command node -ErrorAction SilentlyContinue\\).Source; \\(Get-Command npm -ErrorAction SilentlyContinue\\).Source; \\(Get-Command npx -ErrorAction SilentlyContinue\\).Source; $env:PATH -split ';' | Where-Object { $_ -match 'node|npm' })",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\nodejs\" -ErrorAction SilentlyContinue; Get-ChildItem \"C:\\\\Program Files \\(x86\\)\\\\nodejs\" -ErrorAction SilentlyContinue; Get-ChildItem \"$env:APPDATA\\\\npm\" -ErrorAction SilentlyContinue; Get-ChildItem \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs\" -ErrorAction SilentlyContinue)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__computer",
+      "mcp__Claude_in_Chrome__browser_batch",
+      "PowerShell(Start-Process msiexec.exe -ArgumentList '/i', \"`\"$env:USERPROFILE\\\\Downloads\\\\node-v22.16.0-x64.msi`\"\", '/passive', '/norestart' -Wait -Verb RunAs)",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); & \"C:\\\\Program Files\\\\nodejs\\\\node.exe\" --version; & \"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" --version)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\beatr\\\\OneDrive\\\\Documents\\\\budget app\" -Recurse -File)",
+      "Bash(Select-Object FullName)",
+      "Bash(Sort-Object FullName)",
+      "PowerShell($dirs = @\\('layout','shared','schedule','categories','income','expenses','settings','onboarding'\\); foreach \\($d in $dirs\\) { New-Item -ItemType Directory -Path \"C:\\\\Users\\\\beatr\\\\OneDrive\\\\Documents\\\\budget app\\\\src\\\\components\\\\$d\" -Force | Out-Null }; New-Item -ItemType Directory -Path \"C:\\\\Users\\\\beatr\\\\OneDrive\\\\Documents\\\\budget app\\\\src\\\\pages\" -Force | Out-Null; Write-Output \"Done\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npx vitest *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\beatr\\\\OneDrive\\\\Documents\\\\budget app\" -Recurse -Name)"
+    ]
+  }
+}
