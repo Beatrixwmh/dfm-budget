@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useDfmEngine } from '../hooks/useDfmEngine';
 import { useAppState } from '../store/hooks';
 import { formatCurrency, formatDate } from '../utils/format';
@@ -5,10 +6,12 @@ import { ProjectedBalanceChart } from '../components/charts/ProjectedBalanceChar
 import { BarBreakdownChart } from '../components/charts/BarBreakdownChart';
 import { CashEventsChart } from '../components/charts/CashEventsChart';
 import { UpcomingExpensesCard } from '../components/upcoming/UpcomingExpensesCard';
+import { QuickAddExpenseModal } from '../components/transactions/QuickAddExpenseModal';
 
 export function DashboardPage() {
   const result = useDfmEngine();
   const { buffer } = useAppState();
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   if (!result) {
     return (
@@ -93,6 +96,17 @@ export function DashboardPage() {
           <CashEventsChart events={events} />
         </div>
       </div>
+
+      {/* Quick-add FAB */}
+      <button
+        onClick={() => setShowQuickAdd(true)}
+        className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl font-bold text-white shadow-lg hover:bg-accent-hover md:bottom-6 md:right-6"
+        aria-label="Log expense"
+      >
+        +
+      </button>
+
+      <QuickAddExpenseModal open={showQuickAdd} onClose={() => setShowQuickAdd(false)} />
     </div>
   );
 }
