@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TransactionList } from '../components/transactions/TransactionList';
+import { TrendsView } from '../components/transactions/TrendsView';
 
 type SubTab = 'list' | 'trends';
 
@@ -32,13 +33,7 @@ export function TransactionsPage() {
       </div>
 
       {subTab === 'list' && <TransactionList />}
-      {subTab === 'trends' && (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <span className="mb-3 text-4xl">📈</span>
-          <h3 className="mb-1 text-lg font-medium text-text-secondary">Coming Soon</h3>
-          <p className="text-sm text-text-muted">Trends charts will appear here once you have transaction history.</p>
-        </div>
-      )}
+      {subTab === 'trends' && <TrendsView />}
     </div>
   );
 }
