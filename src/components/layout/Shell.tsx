@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar';
 import { BottomTabBar } from './BottomTabBar';
 import { useIsDesktop } from '../../hooks/useMediaQuery';
 
-export type Tab = 'dashboard' | 'plan' | 'simulator' | 'settings';
+export type Tab = 'dashboard' | 'plan' | 'transactions' | 'simulator' | 'settings';
 
 interface ShellProps {
   activeTab: Tab;

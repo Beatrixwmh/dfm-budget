@@ -3,6 +3,7 @@ import { Shell, type Tab } from './components/layout/Shell';
 import { OnboardingModal } from './components/onboarding/OnboardingModal';
 import { DashboardPage } from './pages/DashboardPage';
 import { PlanPage } from './pages/PlanPage';
+import { TransactionsPage } from './pages/TransactionsPage';
 import { SimulatorPage } from './pages/SimulatorPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { useIsNewUser } from './store/hooks';
@@ -22,6 +23,7 @@ export default function App() {
     <Shell activeTab={activeTab} onTabChange={setActiveTab}>
       {activeTab === 'dashboard' && <DashboardPage />}
       {activeTab === 'plan' && <PlanPage />}
+      {activeTab === 'transactions' && <TransactionsPage />}
       {activeTab === 'simulator' && <SimulatorPage />}
       {activeTab === 'settings' && <SettingsPage />}
     </Shell>
