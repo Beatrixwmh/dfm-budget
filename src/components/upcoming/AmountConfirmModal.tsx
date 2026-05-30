@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal } from '../shared/Modal';
 import { CurrencyInput } from '../shared/CurrencyInput';
 import { formatCurrency } from '../../utils/format';
@@ -14,6 +14,11 @@ interface Props {
 
 export function AmountConfirmModal({ open, onClose, expenseName, expectedAmount, isVariable, onConfirm }: Props) {
   const [amount, setAmount] = useState(expectedAmount);
+
+  // Reset amount when modal opens (handles re-opening after cancel/adjust)
+  useEffect(() => {
+    if (open) setAmount(expectedAmount);
+  }, [open, expectedAmount]);
 
   const handleConfirm = () => {
     if (amount <= 0) return;

@@ -39,13 +39,14 @@ export function UpcomingExpensesCard() {
       for (const d of dates) {
         const dateKey = toDateKey(d);
 
-        // Skip if already paid (has a transaction for this expense on or after the due date)
+        // Skip if already paid — check for a transaction made today or later
+        // (covers paying early: e.g., paying today for something due tomorrow)
         const txKey = `${expense.id}-${dateKey}`;
         if (checkedTransactions.has(txKey)) continue;
         checkedTransactions.add(txKey);
 
         const hasTx = state.transactions.some(
-          t => t.expenseId === expense.id && t.date >= dateKey
+          t => t.expenseId === expense.id && t.date >= todayKey
         );
         if (hasTx) continue;
 
