@@ -108,11 +108,6 @@ export interface OverdueHold {
   categoryId: string;
 }
 
-export interface DfmHistoryEntry {
-  date: string;
-  dfm: number;
-}
-
 export interface DfmResult {
   dailyFreeMoney: number;
   sustainableRate: number;
@@ -149,6 +144,5 @@ export interface AppState {
   customHolidays: CustomHoliday[];
   transactions: Transaction[];
   overdueHolds: OverdueHold[];
-  dfmHistory: DfmHistoryEntry[];
   subscriptionLog: { lastProcessedDate: string };
 }

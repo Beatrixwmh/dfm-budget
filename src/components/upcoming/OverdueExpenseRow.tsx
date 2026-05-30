@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useAppState, useAppDispatch } from '../../store/hooks';
+import { useAppDispatch } from '../../store/hooks';
 import { AmountConfirmModal } from './AmountConfirmModal';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { formatCurrency, formatDate, todayString } from '../../utils/format';
-import type { OverdueHold, Transaction, Expense } from '../../engine/types';
+import type { OverdueHold, Transaction } from '../../engine/types';
 
 interface Props {
   hold: OverdueHold;
@@ -11,12 +11,9 @@ interface Props {
 
 export function OverdueExpenseRow({ hold }: Props) {
   const dispatch = useAppDispatch();
-  const { expenses } = useAppState();
   const [showPayModal, setShowPayModal] = useState(false);
   const [showDismissDialog, setShowDismissDialog] = useState(false);
 
-  const expense = expenses.find((e: Expense) => e.id === hold.expenseId);
-  const isVariable = expense?.isVariable ?? false;
   const canDefer = hold.deferCount < 6; // days 0-6 can defer; 7+ forces resolution
 
   const urgencyClass =
@@ -99,7 +96,6 @@ export function OverdueExpenseRow({ hold }: Props) {
         onClose={() => setShowPayModal(false)}
         expenseName={hold.expenseName}
         expectedAmount={hold.amount}
-        isVariable={isVariable}
         onConfirm={handlePay}
       />
 

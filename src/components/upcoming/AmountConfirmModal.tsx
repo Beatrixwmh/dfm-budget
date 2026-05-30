@@ -1,21 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../shared/Modal';
 import { CurrencyInput } from '../shared/CurrencyInput';
-import { formatCurrency } from '../../utils/format';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   expenseName: string;
   expectedAmount: number;
-  isVariable: boolean;
   onConfirm: (actualAmount: number) => void;
 }
 
-export function AmountConfirmModal({ open, onClose, expenseName, expectedAmount, isVariable, onConfirm }: Props) {
+export function AmountConfirmModal({ open, onClose, expenseName, expectedAmount, onConfirm }: Props) {
   const [amount, setAmount] = useState(expectedAmount);
 
-  // Reset amount when modal opens (handles re-opening after cancel/adjust)
+  // Reset amount when modal opens
   useEffect(() => {
     if (open) setAmount(expectedAmount);
   }, [open, expectedAmount]);
@@ -29,32 +27,7 @@ export function AmountConfirmModal({ open, onClose, expenseName, expectedAmount,
   return (
     <Modal open={open} onClose={onClose} title={`Pay: ${expenseName}`}>
       <div className="space-y-4">
-        {isVariable ? (
-          <>
-            <p className="text-sm text-text-secondary">
-              Expected: {formatCurrency(expectedAmount)}. Enter the actual amount paid:
-            </p>
-            <CurrencyInput value={amount} onChange={setAmount} label="Amount Paid" autoFocus />
-          </>
-        ) : (
-          <>
-            <p className="text-sm text-text-secondary">
-              Confirm payment of {formatCurrency(expectedAmount)} for {expenseName}.
-            </p>
-            <div className="rounded-lg bg-surface-overlay p-3 text-center">
-              <span className="text-2xl font-bold">{formatCurrency(expectedAmount)}</span>
-            </div>
-            <button
-              onClick={() => setAmount(amount === expectedAmount ? 0 : expectedAmount)}
-              className="text-xs text-accent hover:underline"
-            >
-              Adjust amount?
-            </button>
-            {amount !== expectedAmount && (
-              <CurrencyInput value={amount} onChange={setAmount} label="Adjusted Amount" autoFocus />
-            )}
-          </>
-        )}
+        <CurrencyInput value={amount} onChange={setAmount} label="Amount" autoFocus />
 
         <div className="flex gap-3 pt-2">
           <button

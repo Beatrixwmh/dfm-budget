@@ -49,7 +49,6 @@ export function FutureExpenseRow({ item }: Props) {
         onClose={() => setShowPayModal(false)}
         expenseName={item.name}
         expectedAmount={item.amount}
-        isVariable={item.isVariable}
         onConfirm={handlePay}
       />
     </>

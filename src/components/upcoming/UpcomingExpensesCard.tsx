@@ -6,7 +6,6 @@ import { OverdueExpenseRow } from './OverdueExpenseRow';
 import { DueExpenseRow } from './DueExpenseRow';
 import { FutureExpenseRow } from './FutureExpenseRow';
 import type { DueExpense } from './DueExpenseRow';
-import type { Expense } from '../../engine/types';
 
 export function UpcomingExpensesCard() {
   const state = useAppState();
@@ -28,31 +27,30 @@ export function UpcomingExpensesCard() {
     const windowEnd = new Date(today);
     windowEnd.setDate(windowEnd.getDate() + 14);
 
-    const checkedTransactions = new Set<string>();
+    const seenExpenses = new Set<string>();
 
     for (const expense of state.expenses) {
       if (!expense.schedule) continue;
-      if (expense.type === 'one_time') continue;
+      if (expense.type === 'one_time' || expense.type === 'savings_goal') continue;
+
+      // Only show the NEXT occurrence per expense
+      if (seenExpenses.has(expense.id)) continue;
+
+      // Skip if already paid today or later
+      const hasTx = state.transactions.some(
+        t => t.expenseId === expense.id && t.date >= todayKey
+      );
+      if (hasTx) { seenExpenses.add(expense.id); continue; }
+
+      // Skip if there's already an overdue hold for this expense
+      const hasHold = state.overdueHolds.some(h => h.expenseId === expense.id);
+      if (hasHold) { seenExpenses.add(expense.id); continue; }
 
       const dates = generateDates(expense.schedule, today, windowEnd, state.customHolidays);
 
       for (const d of dates) {
         const dateKey = toDateKey(d);
-
-        // Skip if already paid — check for a transaction made today or later
-        // (covers paying early: e.g., paying today for something due tomorrow)
-        const txKey = `${expense.id}-${dateKey}`;
-        if (checkedTransactions.has(txKey)) continue;
-        checkedTransactions.add(txKey);
-
-        const hasTx = state.transactions.some(
-          t => t.expenseId === expense.id && t.date >= todayKey
-        );
-        if (hasTx) continue;
-
-        // Skip if there's already an overdue hold for this expense
-        const hasHold = state.overdueHolds.some(h => h.expenseId === expense.id);
-        if (hasHold) continue;
+        if (seenExpenses.has(expense.id)) break; // only first occurrence
 
         const item: DueExpense = {
           expenseId: expense.id,
@@ -71,6 +69,7 @@ export function UpcomingExpensesCard() {
         } else if (dateKey > tomorrowKey) {
           upcomingList.push(item);
         }
+        seenExpenses.add(expense.id);
       }
     }
 

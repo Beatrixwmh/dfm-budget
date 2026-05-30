@@ -142,11 +142,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         transactions: [...state.transactions, action.payload.transaction],
       };
 
-    case 'RECORD_DFM_HISTORY': {
-      const history = [...state.dfmHistory, action.payload];
-      return { ...state, dfmHistory: history.length > 730 ? history.slice(-730) : history };
-    }
-
     case 'SET_SUBSCRIPTION_LOG':
       return { ...state, subscriptionLog: action.payload };
 

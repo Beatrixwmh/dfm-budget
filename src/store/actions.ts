@@ -1,4 +1,4 @@
-import type { AppState, Category, IncomeSource, Expense, CustomHoliday, Transaction, OverdueHold, DfmHistoryEntry } from '../engine/types';
+import type { AppState, Category, IncomeSource, Expense, CustomHoliday, Transaction, OverdueHold } from '../engine/types';
 
 export type AppAction =
   | { type: 'SET_BALANCE'; payload: { currentBalance: number; lastUpdated: string } }
@@ -24,6 +24,5 @@ export type AppAction =
   | { type: 'PAY_OVERDUE'; payload: { expenseId: string; actualAmount: number; transaction: Transaction } }
   | { type: 'PAY_EXPENSE'; payload: { actualAmount: number; transaction: Transaction } }
   | { type: 'QUICK_ADD_EXPENSE'; payload: { amount: number; transaction: Transaction } }
-  | { type: 'RECORD_DFM_HISTORY'; payload: DfmHistoryEntry }
   | { type: 'SET_SUBSCRIPTION_LOG'; payload: { lastProcessedDate: string } }
   | { type: 'IMPORT_STATE'; payload: AppState };

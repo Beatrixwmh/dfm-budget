@@ -11,7 +11,6 @@ export function createDefaultState(): AppState {
     customHolidays: [],
     transactions: [],
     overdueHolds: [],
-    dfmHistory: [],
     subscriptionLog: { lastProcessedDate: '' },
   };
 }
