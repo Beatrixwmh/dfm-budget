@@ -2,10 +2,23 @@ import { useState, useMemo } from 'react';
 import { useAppState } from '../../store/hooks';
 import { generateDates } from '../../engine/scheduler';
 import { toDateKey } from '../../engine/holidays';
+import type { ScheduleFrequency } from '../../engine/types';
 import { OverdueExpenseRow } from './OverdueExpenseRow';
 import { DueExpenseRow } from './DueExpenseRow';
 import { FutureExpenseRow } from './FutureExpenseRow';
 import type { DueExpense } from './DueExpenseRow';
+
+/** Half the billing period — used to detect early payments for a due date. */
+function halfPeriodDays(freq: ScheduleFrequency): number {
+  switch (freq) {
+    case 'weekly': return 3;
+    case 'biweekly': return 7;
+    case 'semimonthly': return 7;
+    case 'monthly': return 15;
+    case 'quarterly': return 45;
+    case 'annual': return 180;
+  }
+}
 
 export function UpcomingExpensesCard() {
   const state = useAppState();
@@ -32,25 +45,29 @@ export function UpcomingExpensesCard() {
     for (const expense of state.expenses) {
       if (!expense.schedule) continue;
       if (expense.type === 'one_time' || expense.type === 'savings_goal') continue;
-
-      // Only show the NEXT occurrence per expense
       if (seenExpenses.has(expense.id)) continue;
-
-      // Skip if already paid today or later
-      const hasTx = state.transactions.some(
-        t => t.expenseId === expense.id && t.date >= todayKey
-      );
-      if (hasTx) { seenExpenses.add(expense.id); continue; }
 
       // Skip if there's already an overdue hold for this expense
       const hasHold = state.overdueHolds.some(h => h.expenseId === expense.id);
       if (hasHold) { seenExpenses.add(expense.id); continue; }
 
       const dates = generateDates(expense.schedule, today, windowEnd, state.customHolidays);
+      const hp = halfPeriodDays(expense.schedule.frequency);
 
       for (const d of dates) {
         const dateKey = toDateKey(d);
         if (seenExpenses.has(expense.id)) break; // only first occurrence
+
+        // Check if this due date was already paid (including early payments).
+        // Look for a matching transaction within half a billing period before
+        // the due date — catches "Pay Early" clicks from previous days.
+        const lookback = new Date(d);
+        lookback.setDate(lookback.getDate() - hp);
+        const lookbackKey = toDateKey(lookback);
+        const alreadyPaid = state.transactions.some(
+          t => t.expenseId === expense.id && t.date >= lookbackKey && t.date <= dateKey
+        );
+        if (alreadyPaid) { seenExpenses.add(expense.id); break; }
 
         const item: DueExpense = {
           expenseId: expense.id,

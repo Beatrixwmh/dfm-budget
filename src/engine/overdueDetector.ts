@@ -1,6 +1,18 @@
-import type { Expense, Transaction, OverdueHold, CustomHoliday } from './types';
+import type { Expense, Transaction, OverdueHold, CustomHoliday, ScheduleFrequency } from './types';
 import { generateDates } from './scheduler';
 import { toDateKey } from './holidays';
+
+/** Half the billing period — used to detect early payments for a due date. */
+function halfPeriodDays(freq: ScheduleFrequency): number {
+  switch (freq) {
+    case 'weekly': return 3;
+    case 'biweekly': return 7;
+    case 'semimonthly': return 7;
+    case 'monthly': return 15;
+    case 'quarterly': return 45;
+    case 'annual': return 180;
+  }
+}
 
 /**
  * Detect recurring expenses that are overdue (past due with no transaction or hold).
@@ -35,9 +47,14 @@ export function detectOverdueExpenses(
     const lastDueDate = pastDueDates[pastDueDates.length - 1];
     const lastDueDateKey = toDateKey(lastDueDate);
 
-    // Check if there's already a transaction covering this period
+    // Check if there's already a transaction covering this period.
+    // Use half-period lookback to catch early payments (e.g. paid day before due date).
+    const hp = halfPeriodDays(expense.schedule.frequency);
+    const lookback = new Date(lastDueDate);
+    lookback.setDate(lookback.getDate() - hp);
+    const lookbackKey = toDateKey(lookback);
     const hasTransaction = transactions.some(
-      t => t.expenseId === expense.id && t.date >= lastDueDateKey
+      t => t.expenseId === expense.id && t.date >= lookbackKey
     );
     if (hasTransaction) continue;
 
