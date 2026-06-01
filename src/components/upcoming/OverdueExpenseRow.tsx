@@ -25,6 +25,7 @@ export function OverdueExpenseRow({ hold }: Props) {
     const tx: Transaction = {
       id: `tx-${Date.now()}`,
       expenseId: hold.expenseId,
+      dueDate: hold.originalDueDate,
       date: todayString(),
       amount: actualAmount,
       description: hold.expenseName,

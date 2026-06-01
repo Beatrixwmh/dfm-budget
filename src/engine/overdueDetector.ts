@@ -1,18 +1,6 @@
-import type { Expense, Transaction, OverdueHold, CustomHoliday, ScheduleFrequency } from './types';
+import type { Expense, Transaction, OverdueHold, CustomHoliday } from './types';
 import { generateDates } from './scheduler';
-import { toDateKey } from './holidays';
-
-/** Half the billing period — used to detect early payments for a due date. */
-function halfPeriodDays(freq: ScheduleFrequency): number {
-  switch (freq) {
-    case 'weekly': return 3;
-    case 'biweekly': return 7;
-    case 'semimonthly': return 7;
-    case 'monthly': return 15;
-    case 'quarterly': return 45;
-    case 'annual': return 180;
-  }
-}
+import { toDateKey, parseDate } from './holidays';
 
 /**
  * Detect recurring expenses that are overdue (past due with no transaction or hold).
@@ -37,7 +25,7 @@ export function detectOverdueExpenses(
 
     // Find the most recent scheduled due date on or before today
     // Generate dates from schedule start up to today
-    const dates = generateDates(expense.schedule, new Date(expense.schedule.startDate), today, customHolidays);
+    const dates = generateDates(expense.schedule, parseDate(expense.schedule.startDate), today, customHolidays);
     if (dates.length === 0) continue;
 
     // Get the last date that is on or before today
@@ -47,14 +35,11 @@ export function detectOverdueExpenses(
     const lastDueDate = pastDueDates[pastDueDates.length - 1];
     const lastDueDateKey = toDateKey(lastDueDate);
 
-    // Check if there's already a transaction covering this period.
-    // Use half-period lookback to catch early payments (e.g. paid day before due date).
-    const hp = halfPeriodDays(expense.schedule.frequency);
-    const lookback = new Date(lastDueDate);
-    lookback.setDate(lookback.getDate() - hp);
-    const lookbackKey = toDateKey(lookback);
+    // Check if there's already a transaction covering this due date.
+    // Match by dueDate when available; fall back to date match for old transactions.
     const hasTransaction = transactions.some(
-      t => t.expenseId === expense.id && t.date >= lookbackKey
+      t => t.expenseId === expense.id &&
+        (t.dueDate ? t.dueDate === lastDueDateKey : t.date === lastDueDateKey)
     );
     if (hasTransaction) continue;
 

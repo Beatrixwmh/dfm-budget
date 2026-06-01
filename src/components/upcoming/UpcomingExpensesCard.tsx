@@ -2,23 +2,10 @@ import { useState, useMemo } from 'react';
 import { useAppState } from '../../store/hooks';
 import { generateDates } from '../../engine/scheduler';
 import { toDateKey } from '../../engine/holidays';
-import type { ScheduleFrequency } from '../../engine/types';
 import { OverdueExpenseRow } from './OverdueExpenseRow';
 import { DueExpenseRow } from './DueExpenseRow';
 import { FutureExpenseRow } from './FutureExpenseRow';
 import type { DueExpense } from './DueExpenseRow';
-
-/** Half the billing period — used to detect early payments for a due date. */
-function halfPeriodDays(freq: ScheduleFrequency): number {
-  switch (freq) {
-    case 'weekly': return 3;
-    case 'biweekly': return 7;
-    case 'semimonthly': return 7;
-    case 'monthly': return 15;
-    case 'quarterly': return 45;
-    case 'annual': return 180;
-  }
-}
 
 export function UpcomingExpensesCard() {
   const state = useAppState();
@@ -30,7 +17,9 @@ export function UpcomingExpensesCard() {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowKey = toDateKey(tomorrow);
 
-  // Build upcoming expense items from scheduled expenses
+  // Build upcoming expense items from scheduled expenses.
+  // Each occurrence is checked independently via dueDate matching —
+  // no dedup needed because paid occurrences are simply skipped.
   const { todayItems, tomorrowItems, upcomingItems } = useMemo(() => {
     const todayList: DueExpense[] = [];
     const tomorrowList: DueExpense[] = [];
@@ -40,34 +29,26 @@ export function UpcomingExpensesCard() {
     const windowEnd = new Date(today);
     windowEnd.setDate(windowEnd.getDate() + 14);
 
-    const seenExpenses = new Set<string>();
-
     for (const expense of state.expenses) {
       if (!expense.schedule) continue;
       if (expense.type === 'one_time' || expense.type === 'savings_goal') continue;
-      if (seenExpenses.has(expense.id)) continue;
 
       // Skip if there's already an overdue hold for this expense
       const hasHold = state.overdueHolds.some(h => h.expenseId === expense.id);
-      if (hasHold) { seenExpenses.add(expense.id); continue; }
+      if (hasHold) continue;
 
       const dates = generateDates(expense.schedule, today, windowEnd, state.customHolidays);
-      const hp = halfPeriodDays(expense.schedule.frequency);
 
       for (const d of dates) {
         const dateKey = toDateKey(d);
-        if (seenExpenses.has(expense.id)) break; // only first occurrence
 
-        // Check if this due date was already paid (including early payments).
-        // Look for a matching transaction within half a billing period before
-        // the due date — catches "Pay Early" clicks from previous days.
-        const lookback = new Date(d);
-        lookback.setDate(lookback.getDate() - hp);
-        const lookbackKey = toDateKey(lookback);
+        // Check if this specific occurrence is paid.
+        // Match by dueDate when available; fall back to date match for old transactions.
         const alreadyPaid = state.transactions.some(
-          t => t.expenseId === expense.id && t.date >= lookbackKey && t.date <= dateKey
+          t => t.expenseId === expense.id &&
+            (t.dueDate ? t.dueDate === dateKey : t.date === dateKey)
         );
-        if (alreadyPaid) { seenExpenses.add(expense.id); break; }
+        if (alreadyPaid) continue;
 
         const item: DueExpense = {
           expenseId: expense.id,
@@ -86,7 +67,6 @@ export function UpcomingExpensesCard() {
         } else if (dateKey > tomorrowKey) {
           upcomingList.push(item);
         }
-        seenExpenses.add(expense.id);
       }
     }
 
@@ -131,7 +111,7 @@ export function UpcomingExpensesCard() {
               </p>
               <div className="mb-3 space-y-2">
                 {todayItems.map(item => (
-                  <DueExpenseRow key={item.expenseId} item={item} label="Today" />
+                  <DueExpenseRow key={`${item.expenseId}-${item.date}`} item={item} label="Today" />
                 ))}
               </div>
             </>
@@ -143,7 +123,7 @@ export function UpcomingExpensesCard() {
               </p>
               <div className="space-y-2">
                 {tomorrowItems.map(item => (
-                  <DueExpenseRow key={item.expenseId} item={item} label="Tomorrow" />
+                  <DueExpenseRow key={`${item.expenseId}-${item.date}`} item={item} label="Tomorrow" />
                 ))}
               </div>
             </>

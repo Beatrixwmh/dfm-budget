@@ -29,6 +29,7 @@ export function DueExpenseRow({ item, label }: Props) {
     const tx: Transaction = {
       id: `tx-${Date.now()}`,
       expenseId: item.expenseId,
+      dueDate: item.date,
       date: todayString(),
       amount: actualAmount,
       description: item.name,

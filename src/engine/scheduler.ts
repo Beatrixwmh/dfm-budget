@@ -1,5 +1,5 @@
 import type { Schedule, CustomHoliday } from './types';
-import { getObservedHolidays, isHoliday, isWeekend, toDateKey, addDays } from './holidays';
+import { getObservedHolidays, isHoliday, isWeekend, toDateKey, addDays, parseDate } from './holidays';
 
 function lastDayOfMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
@@ -89,8 +89,8 @@ function generateMonthlyDates(
   if (months === 0) return dates;
 
   const dom = schedule.dayOfMonth ?? 1;
-  const start = new Date(schedule.startDate);
-  const end = schedule.endDate ? new Date(schedule.endDate) : null;
+  const start = parseDate(schedule.startDate);
+  const end = schedule.endDate ? parseDate(schedule.endDate) : null;
 
   let current = new Date(start.getFullYear(), start.getMonth(), 1);
 
@@ -125,8 +125,8 @@ function generateSemimonthlyDates(
 ): Date[] {
   const dates: Date[] = [];
   const [day1, day2] = schedule.semimonthlyDays ?? [1, 15];
-  const start = new Date(schedule.startDate);
-  const end = schedule.endDate ? new Date(schedule.endDate) : null;
+  const start = parseDate(schedule.startDate);
+  const end = schedule.endDate ? parseDate(schedule.endDate) : null;
 
   let current = new Date(start.getFullYear(), start.getMonth(), 1);
 
@@ -164,8 +164,8 @@ function generateWeeklyDates(
   const dates: Date[] = [];
   const dow = schedule.dayOfWeek ?? 5; // default Friday
   const weekStep = schedule.frequency === 'biweekly' ? 2 : 1;
-  const start = new Date(schedule.startDate);
-  const end = schedule.endDate ? new Date(schedule.endDate) : null;
+  const start = parseDate(schedule.startDate);
+  const end = schedule.endDate ? parseDate(schedule.endDate) : null;
 
   let current = new Date(start);
   // Align to the first occurrence of dayOfWeek on or after startDate

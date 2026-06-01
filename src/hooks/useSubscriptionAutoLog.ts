@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useAppState, useAppDispatch } from '../store/hooks';
 import { generateDates } from '../engine/scheduler';
-import { toDateKey } from '../engine/holidays';
+import { toDateKey, parseDate } from '../engine/holidays';
 import type { Expense, Transaction } from '../engine/types';
 
 /**
@@ -38,7 +38,7 @@ export function useSubscriptionAutoLog() {
     }
 
     // Window: day after lastProcessed through today
-    const startDate = new Date(lastProcessed);
+    const startDate = parseDate(lastProcessed);
     startDate.setDate(startDate.getDate() + 1);
 
     for (const sub of subscriptions) {
@@ -57,6 +57,7 @@ export function useSubscriptionAutoLog() {
         const tx: Transaction = {
           id: `auto-${sub.id}-${dateKey}`,
           expenseId: sub.id,
+          dueDate: dateKey,
           date: dateKey,
           amount: sub.amount,
           description: sub.name,

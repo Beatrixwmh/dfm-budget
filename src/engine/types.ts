@@ -94,6 +94,8 @@ export interface Transaction {
   date: string;
   amount: number;
   expenseId?: string;
+  /** Which scheduled due date this payment covers. */
+  dueDate?: string;
   categoryId: string;
   description: string;
   source: 'manual' | 'auto';

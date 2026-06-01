@@ -1,4 +1,5 @@
 import type { Schedule, ScheduleFrequency } from '../../engine/types';
+import { parseDate } from '../../engine/holidays';
 import { FrequencySelect } from './FrequencySelect';
 import { DayOfWeekPicker } from './DayOfWeekPicker';
 import { DayOfMonthPicker } from './DayOfMonthPicker';
@@ -80,10 +81,10 @@ export function ScheduleForm({ value, onChange }: Props) {
         <div>
           <label className="mb-1.5 block text-sm text-text-secondary">Month</label>
           <select
-            value={new Date(value.startDate).getMonth()}
+            value={parseDate(value.startDate).getMonth()}
             onChange={e => {
               const month = parseInt(e.target.value);
-              const d = new Date(value.startDate);
+              const d = parseDate(value.startDate);
               d.setMonth(month);
               update({ startDate: d.toISOString().slice(0, 10) });
             }}

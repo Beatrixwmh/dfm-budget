@@ -1,4 +1,5 @@
 import type { CashEvent } from '../../engine/types';
+import { parseDate } from '../../engine/holidays';
 
 export type Timescale = '7d' | '30d' | '90d' | '6mo' | '1yr' | '2yr';
 
@@ -39,7 +40,7 @@ export function aggregateEvents(
   today: string
 ): CashFlowBucket[] {
   const config = TIMESCALE_CONFIGS[timescale];
-  const todayDate = new Date(today);
+  const todayDate = parseDate(today);
   const endDate = new Date(todayDate);
   endDate.setDate(endDate.getDate() + config.days);
   const endKey = toKey(endDate);

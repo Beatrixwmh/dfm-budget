@@ -1,6 +1,6 @@
 import type { IncomeSource, Expense, CashEvent, CustomHoliday } from './types';
 import { generateDates } from './scheduler';
-import { toDateKey, addDays } from './holidays';
+import { toDateKey, addDays, parseDate } from './holidays';
 
 export function generateCashEvents(
   incomeSources: IncomeSource[],
@@ -28,7 +28,7 @@ export function generateCashEvents(
   for (const expense of expenses) {
     if (expense.type === 'one_time') {
       if (expense.schedule) {
-        const expDate = new Date(expense.schedule.startDate);
+        const expDate = parseDate(expense.schedule.startDate);
         if (expDate >= today && expDate <= windowEnd) {
           events.push({
             date: toDateKey(expDate),

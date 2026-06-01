@@ -26,7 +26,8 @@ interface Bucket {
 }
 
 function getBucketKey(date: string, timescale: Timescale): string {
-  const d = new Date(date);
+  const [y, m, day] = date.split('-').map(Number);
+  const d = new Date(y, m - 1, day);
   if (timescale === '7d' || timescale === '30d') {
     return date.slice(5); // MM-DD
   } else if (timescale === '90d' || timescale === '6mo') {

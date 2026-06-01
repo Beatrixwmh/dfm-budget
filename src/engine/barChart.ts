@@ -131,7 +131,9 @@ function findNextIncomeDate(events: CashEvent[], today: string): string | null {
 }
 
 function daysBetween(a: string, b: string): number {
-  const da = new Date(a);
-  const db = new Date(b);
+  const [ay, am, ad] = a.split('-').map(Number);
+  const [by, bm, bd] = b.split('-').map(Number);
+  const da = new Date(ay, am - 1, ad);
+  const db = new Date(by, bm - 1, bd);
   return Math.round((db.getTime() - da.getTime()) / (86400 * 1000));
 }
