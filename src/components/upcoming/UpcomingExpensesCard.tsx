@@ -19,7 +19,7 @@ export function UpcomingExpensesCard() {
 
   // Build upcoming expense items from scheduled expenses.
   // Each occurrence is checked independently via dueDate matching —
-  // no dedup needed because paid occurrences are simply skipped.
+  // Show only the NEXT unpaid occurrence per expense.
   const { todayItems, tomorrowItems, upcomingItems } = useMemo(() => {
     const todayList: DueExpense[] = [];
     const tomorrowList: DueExpense[] = [];
@@ -29,27 +29,31 @@ export function UpcomingExpensesCard() {
     const windowEnd = new Date(today);
     windowEnd.setDate(windowEnd.getDate() + 14);
 
+    const seenExpenses = new Set<string>();
+
     for (const expense of state.expenses) {
       if (!expense.schedule) continue;
       if (expense.type === 'one_time' || expense.type === 'savings_goal') continue;
+      if (seenExpenses.has(expense.id)) continue;
 
       // Skip if there's already an overdue hold for this expense
       const hasHold = state.overdueHolds.some(h => h.expenseId === expense.id);
-      if (hasHold) continue;
+      if (hasHold) { seenExpenses.add(expense.id); continue; }
 
       const dates = generateDates(expense.schedule, today, windowEnd, state.customHolidays);
 
       for (const d of dates) {
+        if (seenExpenses.has(expense.id)) break;
         const dateKey = toDateKey(d);
 
-        // Check if this specific occurrence is paid.
-        // Match by dueDate when available; fall back to date match for old transactions.
+        // Check if this specific occurrence is paid (by dueDate match).
         const alreadyPaid = state.transactions.some(
           t => t.expenseId === expense.id &&
             (t.dueDate ? t.dueDate === dateKey : t.date === dateKey)
         );
-        if (alreadyPaid) continue;
+        if (alreadyPaid) continue; // skip paid, keep looking for next unpaid
 
+        // Found the first unpaid occurrence — add it and mark expense as seen
         const item: DueExpense = {
           expenseId: expense.id,
           name: expense.name,
@@ -67,6 +71,7 @@ export function UpcomingExpensesCard() {
         } else if (dateKey > tomorrowKey) {
           upcomingList.push(item);
         }
+        seenExpenses.add(expense.id);
       }
     }
 
