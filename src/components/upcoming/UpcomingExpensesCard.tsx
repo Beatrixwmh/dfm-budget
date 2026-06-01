@@ -25,9 +25,9 @@ export function UpcomingExpensesCard() {
     const tomorrowList: DueExpense[] = [];
     const upcomingList: DueExpense[] = [];
 
-    // Look ahead 14 days for upcoming section
+    // Look ahead 35 days so all monthly expenses are visible
     const windowEnd = new Date(today);
-    windowEnd.setDate(windowEnd.getDate() + 14);
+    windowEnd.setDate(windowEnd.getDate() + 35);
 
     const seenExpenses = new Set<string>();
 
