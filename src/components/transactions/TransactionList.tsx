@@ -39,7 +39,11 @@ export function TransactionList() {
         if (typeFilter === 'unplanned' && t.expenseId) return false;
         return true;
       })
-      .sort((a: Transaction, b: Transaction) => b.date.localeCompare(a.date));
+      .sort((a: Transaction, b: Transaction) => {
+        const dateCmp = b.date.localeCompare(a.date);
+        if (dateCmp !== 0) return dateCmp;
+        return (b.seq ?? 0) - (a.seq ?? 0);
+      });
   }, [transactions, dateRange, categoryFilter, typeFilter]);
 
   return (

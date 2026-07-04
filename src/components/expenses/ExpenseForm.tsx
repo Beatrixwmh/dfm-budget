@@ -20,7 +20,6 @@ const EXPENSE_TYPES: { value: ExpenseType; label: string; desc: string }[] = [
   { value: 'recurring', label: 'Recurring', desc: 'Manual confirmation on due date' },
   { value: 'subscription', label: 'Subscription', desc: 'Auto-charged, logged automatically' },
   { value: 'one_time', label: 'One-time', desc: 'Single payment on a specific date' },
-  { value: 'savings_goal', label: 'Savings Goal', desc: 'Save toward a target amount' },
 ];
 
 const TIER_OPTIONS: { value: ExpenseTier; label: string }[] = [
@@ -31,21 +30,10 @@ const TIER_OPTIONS: { value: ExpenseTier; label: string }[] = [
 ];
 
 const CATEGORY_TIER_SUGGESTIONS: Record<string, ExpenseTier> = {
-  housing: 0,
-  rent: 0,
-  mortgage: 0,
-  loans: 0,
-  loan: 0,
-  utilities: 1,
-  insurance: 1,
-  phone: 1,
-  groceries: 1,
-  transport: 2,
-  savings: 2,
-  investment: 2,
-  subscriptions: 3,
-  entertainment: 3,
-  hobby: 3,
+  housing: 0, rent: 0, mortgage: 0, loans: 0, loan: 0,
+  utilities: 1, insurance: 1, phone: 1, groceries: 1,
+  transport: 2, savings: 2, investment: 2,
+  subscriptions: 3, entertainment: 3, hobby: 3,
 };
 
 function suggestTier(categoryName: string): ExpenseTier {
@@ -53,11 +41,12 @@ function suggestTier(categoryName: string): ExpenseTier {
   for (const [key, tier] of Object.entries(CATEGORY_TIER_SUGGESTIONS)) {
     if (lower.includes(key)) return tier;
   }
-  return 2; // Default: Important
+  return 2;
 }
 
 const DEFAULT_SCHEDULE: Schedule = {
-  frequency: 'monthly',
+  interval: 1,
+  unit: 'month',
   dayOfMonth: 1,
   dayOfWeek: null,
   startDate: todayString(),
@@ -75,26 +64,15 @@ export function ExpenseForm({ open, onClose, onSave, initial }: Props) {
   const [isVariable, setIsVariable] = useState(initial?.isVariable ?? false);
   const [schedule, setSchedule] = useState<Schedule>(initial?.schedule ?? DEFAULT_SCHEDULE);
   const [tier, setTier] = useState<ExpenseTier>(initial?.tier ?? 2);
-  const [targetAmount, setTargetAmount] = useState(initial?.targetAmount ?? 0);
-  const [targetDate, setTargetDate] = useState(initial?.targetDate ?? '');
-  const [savingsMode, setSavingsMode] = useState<'target_date' | 'fixed_contribution'>(
-    initial?.savingsMode ?? 'fixed_contribution'
-  );
 
-  const isSavingsGoal = type === 'savings_goal';
-
-  // Auto-suggest tier when category changes (only for new expenses)
   useEffect(() => {
-    if (initial) return; // Don't override on edit
+    if (initial) return;
     const cat = categories.find(c => c.id === categoryId);
     if (cat) setTier(suggestTier(cat.name));
   }, [categoryId, categories, initial]);
 
-  const isTargetDateMode = isSavingsGoal && savingsMode === 'target_date';
-
   const handleSave = () => {
-    if (!name.trim()) return;
-    if (!isTargetDateMode && amount <= 0) return;
+    if (!name.trim() || amount <= 0) return;
     const expense: Expense = {
       id: initial?.id ?? generateId(),
       name: name.trim(),
@@ -106,20 +84,27 @@ export function ExpenseForm({ open, onClose, onSave, initial }: Props) {
       tier,
       isAutoCut: initial?.isAutoCut ?? false,
     };
-    if (type === 'savings_goal') {
-      expense.targetAmount = targetAmount;
-      expense.currentSaved = initial?.currentSaved ?? 0;
-      expense.savingsMode = savingsMode;
-      if (savingsMode === 'target_date' && targetDate) {
-        expense.targetDate = targetDate;
-      }
-    }
     onSave(expense);
     onClose();
   };
 
+  const canSave = name.trim() !== '' && amount > 0;
+
   return (
-    <Modal open={open} onClose={onClose} title={initial ? 'Edit Expense' : 'New Expense'}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={initial ? 'Edit Expense' : 'New Expense'}
+      footer={
+        <button
+          onClick={handleSave}
+          disabled={!canSave}
+          className="w-full rounded-lg bg-accent py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-40"
+        >
+          {initial ? 'Save Changes' : 'Add Expense'}
+        </button>
+      }
+    >
       <div className="flex flex-col gap-4">
         <div>
           <label className="mb-1.5 block text-sm text-text-secondary">Name</label>
@@ -133,13 +118,11 @@ export function ExpenseForm({ open, onClose, onSave, initial }: Props) {
           />
         </div>
 
-        {!isSavingsGoal && (
-          <CurrencyInput value={amount} onChange={setAmount} label="Amount (per occurrence)" />
-        )}
+        <CurrencyInput value={amount} onChange={setAmount} label="Amount (per occurrence)" />
 
         <div>
           <label className="mb-1.5 block text-sm text-text-secondary">Type</label>
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5">
             {EXPENSE_TYPES.map(t => (
               <button
                 key={t.value}
@@ -160,63 +143,7 @@ export function ExpenseForm({ open, onClose, onSave, initial }: Props) {
           </div>
         </div>
 
-        {isSavingsGoal && (
-          <div className="rounded-lg border border-border bg-surface-overlay p-3">
-            <label className="mb-2 block text-sm font-medium text-text-secondary">Savings Goal</label>
-            <div className="flex flex-col gap-3">
-              <CurrencyInput value={targetAmount} onChange={setTargetAmount} label="Target amount" />
-              <div>
-                <label className="mb-1.5 block text-sm text-text-secondary">Mode</label>
-                <div className="flex gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setSavingsMode('fixed_contribution')}
-                    className={`flex-1 rounded-lg px-3 py-1.5 text-sm ${
-                      savingsMode === 'fixed_contribution'
-                        ? 'bg-accent text-white'
-                        : 'bg-surface-raised text-text-secondary'
-                    }`}
-                  >
-                    Fixed contribution
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSavingsMode('target_date')}
-                    className={`flex-1 rounded-lg px-3 py-1.5 text-sm ${
-                      savingsMode === 'target_date'
-                        ? 'bg-accent text-white'
-                        : 'bg-surface-raised text-text-secondary'
-                    }`}
-                  >
-                    By target date
-                  </button>
-                </div>
-              </div>
-              {savingsMode === 'fixed_contribution' && (
-                <CurrencyInput value={amount} onChange={setAmount} label="Contribution (per occurrence)" />
-              )}
-              {savingsMode === 'target_date' && (
-                <div>
-                  <label className="mb-1.5 block text-sm text-text-secondary">Target date</label>
-                  <input
-                    type="date"
-                    value={targetDate}
-                    onChange={e => setTargetDate(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-surface-raised px-3 py-2.5 text-sm text-text-primary"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {categories.length > 0 && (
-          <CategorySelect
-            categories={categories}
-            value={categoryId}
-            onChange={setCategoryId}
-          />
-        )}
+        <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} allowAdd />
 
         <div>
           <label className="mb-1.5 block text-sm text-text-secondary">Priority Tier</label>
@@ -237,17 +164,15 @@ export function ExpenseForm({ open, onClose, onSave, initial }: Props) {
           </p>
         </div>
 
-        {!isSavingsGoal && (
-          <label className="flex items-center gap-2 text-sm text-text-secondary">
-            <input
-              type="checkbox"
-              checked={isVariable}
-              onChange={e => setIsVariable(e.target.checked)}
-              className="h-4 w-4 rounded accent-accent"
-            />
-            Amount varies (this is an estimate)
-          </label>
-        )}
+        <label className="flex items-center gap-2 text-sm text-text-secondary">
+          <input
+            type="checkbox"
+            checked={isVariable}
+            onChange={e => setIsVariable(e.target.checked)}
+            className="h-4 w-4 rounded accent-accent"
+          />
+          Amount varies (this is an estimate)
+        </label>
 
         <div className="border-t border-border pt-4">
           <h4 className="mb-3 text-sm font-medium text-text-secondary">
@@ -267,15 +192,7 @@ export function ExpenseForm({ open, onClose, onSave, initial }: Props) {
           )}
         </div>
 
-        <button
-          onClick={handleSave}
-          disabled={!name.trim() || (!isTargetDateMode && amount <= 0)}
-          className="mt-2 rounded-lg bg-accent py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-40"
-        >
-          {initial ? 'Save Changes' : 'Add Expense'}
-        </button>
       </div>
     </Modal>
   );
 }
-

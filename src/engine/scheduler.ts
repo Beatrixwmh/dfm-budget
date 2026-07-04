@@ -69,24 +69,15 @@ function addMonths(date: Date, months: number): Date {
   return result;
 }
 
-function getMonthlyFrequencyMonths(frequency: Schedule['frequency']): number {
-  switch (frequency) {
-    case 'monthly': return 1;
-    case 'quarterly': return 3;
-    case 'annual': return 12;
-    default: return 0;
-  }
-}
-
 function generateMonthlyDates(
   schedule: Schedule,
   windowStart: Date,
   windowEnd: Date,
-  holidays: Set<string>
+  holidays: Set<string>,
+  monthsStep: number
 ): Date[] {
   const dates: Date[] = [];
-  const months = getMonthlyFrequencyMonths(schedule.frequency);
-  if (months === 0) return dates;
+  const months = Math.max(1, monthsStep);
 
   const dom = schedule.dayOfMonth ?? 1;
   const start = parseDate(schedule.startDate);
@@ -163,7 +154,7 @@ function generateWeeklyDates(
 ): Date[] {
   const dates: Date[] = [];
   const dow = schedule.dayOfWeek ?? 5; // default Friday
-  const weekStep = schedule.frequency === 'biweekly' ? 2 : 1;
+  const weekStep = Math.max(1, schedule.interval);
   const start = parseDate(schedule.startDate);
   const end = schedule.endDate ? parseDate(schedule.endDate) : null;
 
@@ -204,17 +195,16 @@ export function generateDates(
     }
   }
 
-  switch (schedule.frequency) {
-    case 'weekly':
-    case 'biweekly':
-      return generateWeeklyDates(schedule, windowStart, windowEnd, allHolidays);
-    case 'semimonthly':
-      return generateSemimonthlyDates(schedule, windowStart, windowEnd, allHolidays);
-    case 'monthly':
-    case 'quarterly':
-    case 'annual':
-      return generateMonthlyDates(schedule, windowStart, windowEnd, allHolidays);
+  // Legacy twice-a-month schedules (migrated data) keep their special behavior.
+  if (schedule.semimonthlyDays) {
+    return generateSemimonthlyDates(schedule, windowStart, windowEnd, allHolidays);
   }
+  if (schedule.unit === 'week') {
+    return generateWeeklyDates(schedule, windowStart, windowEnd, allHolidays);
+  }
+  // month or year → step by whole months
+  const monthsStep = schedule.unit === 'year' ? schedule.interval * 12 : schedule.interval;
+  return generateMonthlyDates(schedule, windowStart, windowEnd, allHolidays, monthsStep);
 }
 
 export function nextDate(

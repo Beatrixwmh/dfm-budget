@@ -4,7 +4,7 @@ import { useAppState, useAppDispatch } from '../../store/hooks';
 import { IncomeForm } from './IncomeForm';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { EmptyState } from '../shared/EmptyState';
-import { formatCurrency, formatFrequency, formatDayOfWeek, formatDayOfMonth } from '../../utils/format';
+import { formatCurrency, formatRecurrence, formatDayOfWeek, formatDayOfMonth } from '../../utils/format';
 
 export function IncomePanel() {
   const { incomeSources } = useAppState();
@@ -30,10 +30,11 @@ export function IncomePanel() {
   };
 
   const scheduleLabel = (inc: IncomeSource) => {
-    const freq = formatFrequency(inc.schedule.frequency);
-    if (inc.schedule.dayOfWeek !== null) return `${freq} on ${formatDayOfWeek(inc.schedule.dayOfWeek)}`;
-    if (inc.schedule.dayOfMonth !== null) return `${freq} on the ${formatDayOfMonth(inc.schedule.dayOfMonth)}`;
-    return freq;
+    const s = inc.schedule;
+    const base = formatRecurrence(s.interval, s.unit);
+    if (s.unit === 'week' && s.dayOfWeek !== null) return `${base} on ${formatDayOfWeek(s.dayOfWeek)}`;
+    if (s.dayOfMonth !== null) return `${base} on the ${formatDayOfMonth(s.dayOfMonth)}`;
+    return base;
   };
 
   return (
@@ -93,13 +94,15 @@ export function IncomePanel() {
         </div>
       )}
 
-      <IncomeForm
-        key={editing?.id ?? 'new'}
-        open={formOpen}
-        onClose={() => { setFormOpen(false); setEditing(undefined); }}
-        onSave={handleSave}
-        initial={editing}
-      />
+      {formOpen && (
+        <IncomeForm
+          key={editing?.id ?? 'new'}
+          open
+          onClose={() => { setFormOpen(false); setEditing(undefined); }}
+          onSave={handleSave}
+          initial={editing}
+        />
+      )}
 
       <ConfirmDialog
         open={!!deleting}

@@ -1,15 +1,15 @@
 import type { IncomeSource, Expense, Category } from './types';
 
 export const testCategories: Category[] = [
-  { id: 'cat-housing', name: 'Housing', color: '#ef4444', sortOrder: 0 },
-  { id: 'cat-transport', name: 'Transport', color: '#3b82f6', sortOrder: 1 },
-  { id: 'cat-utilities', name: 'Utilities', color: '#f97316', sortOrder: 2 },
-  { id: 'cat-insurance', name: 'Insurance', color: '#8b5cf6', sortOrder: 3 },
-  { id: 'cat-subscriptions', name: 'Subscriptions', color: '#ec4899', sortOrder: 4 },
-  { id: 'cat-savings', name: 'Savings/Investment', color: '#14b8a6', sortOrder: 5 },
-  { id: 'cat-loans', name: 'Loans', color: '#dc2626', sortOrder: 6 },
-  { id: 'cat-phone', name: 'Phone', color: '#6366f1', sortOrder: 7 },
-  { id: 'cat-storage', name: 'Storage', color: '#a855f7', sortOrder: 8 },
+  { id: 'cat-housing', name: 'Housing', color: '#d98f8f', sortOrder: 0 },
+  { id: 'cat-transport', name: 'Transport', color: '#7d9fd4', sortOrder: 1 },
+  { id: 'cat-utilities', name: 'Utilities', color: '#e0a877', sortOrder: 2 },
+  { id: 'cat-insurance', name: 'Insurance', color: '#a394d6', sortOrder: 3 },
+  { id: 'cat-subscriptions', name: 'Subscriptions', color: '#d691b0', sortOrder: 4 },
+  { id: 'cat-savings', name: 'Savings/Investment', color: '#6fb3ac', sortOrder: 5 },
+  { id: 'cat-loans', name: 'Loans', color: '#cf8a8a', sortOrder: 6 },
+  { id: 'cat-phone', name: 'Phone', color: '#8b80cc', sortOrder: 7 },
+  { id: 'cat-storage', name: 'Storage', color: '#b596d6', sortOrder: 8 },
 ];
 
 // From Sheet3 of the spreadsheet
@@ -20,7 +20,7 @@ export const testIncome: IncomeSource[] = [
     amount: 1268,
     isVariable: false,
     schedule: {
-      frequency: 'biweekly',
+      interval: 2, unit: 'week',
       dayOfMonth: null,
       dayOfWeek: 5, // Friday
       startDate: '2023-11-01',
@@ -42,7 +42,7 @@ export const testExpenses: Expense[] = [
     tier: 0,
     isAutoCut: false,
     schedule: {
-      frequency: 'monthly',
+      interval: 1, unit: 'month',
       dayOfMonth: 1,
       dayOfWeek: null,
       startDate: '2023-11-01',
@@ -61,7 +61,7 @@ export const testExpenses: Expense[] = [
     tier: 1,
     isAutoCut: false,
     schedule: {
-      frequency: 'monthly',
+      interval: 1, unit: 'month',
       dayOfMonth: 7,
       dayOfWeek: null,
       startDate: '2023-11-07',
@@ -80,7 +80,7 @@ export const testExpenses: Expense[] = [
     tier: 1,
     isAutoCut: false,
     schedule: {
-      frequency: 'monthly',
+      interval: 1, unit: 'month',
       dayOfMonth: 23,
       dayOfWeek: null,
       startDate: '2023-10-23',
@@ -99,7 +99,7 @@ export const testExpenses: Expense[] = [
     tier: 1,
     isAutoCut: false,
     schedule: {
-      frequency: 'monthly',
+      interval: 1, unit: 'month',
       dayOfMonth: 19,
       dayOfWeek: null,
       startDate: '2023-10-19',
@@ -118,7 +118,7 @@ export const testExpenses: Expense[] = [
     tier: 1,
     isAutoCut: false,
     schedule: {
-      frequency: 'quarterly', // every 6 months ~= 2 quarters (we'll use semiannual via quarterly x2 approach)
+      interval: 3, unit: 'month', // every 6 months ~= 2 quarters (we'll use semiannual via quarterly x2 approach)
       dayOfMonth: 5,
       dayOfWeek: null,
       startDate: '2023-10-05',
@@ -137,7 +137,7 @@ export const testExpenses: Expense[] = [
     tier: 2,
     isAutoCut: false,
     schedule: {
-      frequency: 'annual',
+      interval: 1, unit: 'year',
       dayOfMonth: 1,
       dayOfWeek: null,
       startDate: '2023-09-01',
@@ -156,7 +156,7 @@ export const testExpenses: Expense[] = [
     tier: 2,
     isAutoCut: false,
     schedule: {
-      frequency: 'quarterly', // every 6 months
+      interval: 3, unit: 'month', // every 6 months
       dayOfMonth: 30,
       dayOfWeek: null,
       startDate: '2023-10-30',
@@ -175,7 +175,7 @@ export const testExpenses: Expense[] = [
     tier: 1,
     isAutoCut: false,
     schedule: {
-      frequency: 'annual',
+      interval: 1, unit: 'year',
       dayOfMonth: 7,
       dayOfWeek: null,
       startDate: '2023-10-07',
@@ -194,7 +194,7 @@ export const testExpenses: Expense[] = [
     tier: 2,
     isAutoCut: false,
     schedule: {
-      frequency: 'annual', // every 24 months, but annual is closest we have
+      interval: 1, unit: 'year', // every 24 months, but annual is closest we have
       dayOfMonth: 30,
       dayOfWeek: null,
       startDate: '2023-10-30',
@@ -213,7 +213,7 @@ export const testExpenses: Expense[] = [
     tier: 2,
     isAutoCut: false,
     schedule: {
-      frequency: 'annual',
+      interval: 1, unit: 'year',
       dayOfMonth: 30,
       dayOfWeek: null,
       startDate: '2023-10-30',
@@ -232,7 +232,7 @@ export const testExpenses: Expense[] = [
     tier: 1,
     isAutoCut: false,
     schedule: {
-      frequency: 'annual',
+      interval: 1, unit: 'year',
       dayOfMonth: 2,
       dayOfWeek: null,
       startDate: '2023-11-02',
@@ -251,7 +251,7 @@ export const testExpenses: Expense[] = [
     tier: 2,
     isAutoCut: false,
     schedule: {
-      frequency: 'monthly',
+      interval: 1, unit: 'month',
       dayOfMonth: 4,
       dayOfWeek: null,
       startDate: '2023-11-04',
@@ -270,7 +270,7 @@ export const testExpenses: Expense[] = [
     tier: 3,
     isAutoCut: false,
     schedule: {
-      frequency: 'annual',
+      interval: 1, unit: 'year',
       dayOfMonth: 1,
       dayOfWeek: null,
       startDate: '2023-05-01',
@@ -289,7 +289,7 @@ export const testExpenses: Expense[] = [
     tier: 2,
     isAutoCut: false,
     schedule: {
-      frequency: 'monthly',
+      interval: 1, unit: 'month',
       dayOfMonth: 1,
       dayOfWeek: null,
       startDate: '2023-11-01',
@@ -308,7 +308,7 @@ export const testExpenses: Expense[] = [
     tier: 0,
     isAutoCut: false,
     schedule: {
-      frequency: 'monthly',
+      interval: 1, unit: 'month',
       dayOfMonth: 4,
       dayOfWeek: null,
       startDate: '2023-11-04',

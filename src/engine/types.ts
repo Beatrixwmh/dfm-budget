@@ -10,6 +10,10 @@ export interface Category {
   sortOrder: number;
 }
 
+/** "Every N <unit>" recurrence. */
+export type ScheduleUnit = 'week' | 'month' | 'year';
+
+/** Legacy frequency names — only used when migrating old saved data. */
 export type ScheduleFrequency =
   | 'weekly'
   | 'biweekly'
@@ -31,10 +35,12 @@ export type HolidayRule =
   | 'nearest_business_day';
 
 export interface Schedule {
-  frequency: ScheduleFrequency;
-  dayOfMonth: number | null;
-  dayOfWeek: number | null;
-  semimonthlyDays?: [number, number];
+  /** Repeat every `interval` units (e.g. interval 6, unit 'month' = every 6 months). */
+  interval: number;
+  unit: ScheduleUnit;
+  dayOfMonth: number | null;   // used when unit is 'month' or 'year'
+  dayOfWeek: number | null;    // used when unit is 'week'
+  semimonthlyDays?: [number, number]; // legacy twice-a-month (migrated data only)
   startDate: string;
   endDate: string | null;
   weekendRule: WeekendRule;
@@ -49,7 +55,7 @@ export interface IncomeSource {
   schedule: Schedule;
 }
 
-export type ExpenseType = 'recurring' | 'one_time' | 'subscription' | 'savings_goal';
+export type ExpenseType = 'recurring' | 'one_time' | 'subscription';
 
 export type ExpenseTier = 0 | 1 | 2 | 3;
 
@@ -70,10 +76,6 @@ export interface Expense {
   schedule: Schedule | null;
   tier: ExpenseTier;
   isAutoCut: boolean;
-  targetAmount?: number;
-  targetDate?: string;
-  currentSaved?: number;
-  savingsMode?: 'target_date' | 'fixed_contribution';
 }
 
 export interface CashEvent {
@@ -99,6 +101,8 @@ export interface Transaction {
   categoryId: string;
   description: string;
   source: 'manual' | 'auto';
+  /** Monotonically increasing sequence number for stable sort within same day. */
+  seq?: number;
 }
 
 export interface OverdueHold {
@@ -110,12 +114,38 @@ export interface OverdueHold {
   categoryId: string;
 }
 
+export interface Goal {
+  id: string;
+  name: string;
+  type: 'target' | 'continuous';
+  status: 'active' | 'paused';
+  /** Daily contribution rate (cadence is display-only). */
+  contributionRatePerDay: number;
+  cadence: 'weekly' | 'biweekly' | 'monthly';
+  targetAmount?: number;
+  targetDate?: string;
+  accumulatedTotal: number;
+  /** Optional date for automatic un-pause. */
+  autoUnpauseDate?: string;
+}
+
+export interface DfmSegment {
+  startDay: number;
+  endDay: number;
+  rate: number;
+  pinchDate: string;
+  nextRate: number | null; // rate after this pinch clears (null if final segment)
+}
+
 export interface DfmResult {
   dailyFreeMoney: number;
   sustainableRate: number;
+  /** Buffer-constrained max rate (no sustainable cap). Used as savings ceiling. */
+  rawDfm: number;
   pinchPointDate: string;
   pinchPointBalance: number;
-  projectedBalances: { date: string; balance: number; rawBalance: number }[];
+  projectedBalances: { date: string; balance: number; rawBalance: number; savings?: number }[];
+  segments: DfmSegment[];
 }
 
 export interface BarSegment {
@@ -123,12 +153,13 @@ export interface BarSegment {
   amount: number;
   color: string;
   categoryId: string | null;
-  type: 'obligation' | 'future_reserves' | 'buffer' | 'free_money' | 'overdue_hold';
+  type: 'obligation' | 'buffer' | 'free_money' | 'overdue_hold' | 'savings';
   funding?: {
-    allocated: number;
-    due: number;
-    dueDate: string;
-    expenseNames: string[];
+    nextDue: number;
+    nextDueDate: string;
+    nextAllocated: number;
+    futureTotal: number;
+    futureAllocated: number;
   };
 }
 
@@ -147,4 +178,6 @@ export interface AppState {
   transactions: Transaction[];
   overdueHolds: OverdueHold[];
   subscriptionLog: { lastProcessedDate: string };
+  nextSeq: number;
+  goals: Goal[];
 }

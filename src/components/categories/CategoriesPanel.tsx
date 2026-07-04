@@ -78,12 +78,15 @@ export function CategoriesPanel() {
         </div>
       )}
 
-      <CategoryForm
-        open={formOpen}
-        onClose={() => { setFormOpen(false); setEditing(undefined); }}
-        onSave={handleSave}
-        initial={editing}
-      />
+      {formOpen && (
+        <CategoryForm
+          key={editing?.id ?? 'new'}
+          open
+          onClose={() => { setFormOpen(false); setEditing(undefined); }}
+          onSave={handleSave}
+          initial={editing}
+        />
+      )}
 
       <ConfirmDialog
         open={!!deleting}

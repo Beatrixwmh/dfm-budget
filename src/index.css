@@ -1,22 +1,23 @@
 @import "tailwindcss";
 
 @theme {
-  --color-surface: #0f1117;
-  --color-surface-raised: #1a1d27;
-  --color-surface-overlay: #242836;
-  --color-border: #2e3345;
-  --color-text-primary: #f1f3f9;
-  --color-text-secondary: #8b92a8;
-  --color-text-muted: #5b6178;
-  --color-accent: #818cf8;
-  --color-accent-hover: #6366f1;
-  --color-accent-bright: #a78bfa;
-  --color-success: #34d399;
-  --color-success-dim: #065f46;
-  --color-warning: #fbbf24;
-  --color-warning-dim: #78350f;
-  --color-danger: #f87171;
-  --color-danger-dim: #7f1d1d;
+  /* Soft dark: muted charcoal surfaces, off-white text (lower glare), pastel accents */
+  --color-surface: #1a1c23;
+  --color-surface-raised: #22252f;
+  --color-surface-overlay: #2b2f3b;
+  --color-border: #353a49;
+  --color-text-primary: #dadce4;
+  --color-text-secondary: #969cb0;
+  --color-text-muted: #686e82;
+  --color-accent: #8b80cc;
+  --color-accent-hover: #756ab8;
+  --color-accent-bright: #b3a4e0;
+  --color-success: #6dbf9c;
+  --color-success-dim: #1f4d3c;
+  --color-warning: #e0b074;
+  --color-warning-dim: #5c4424;
+  --color-danger: #d98f8f;
+  --color-danger-dim: #5e2e2e;
 }
 
 body {
@@ -29,4 +30,15 @@ body {
 
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.8);
+}
+
+/* iOS Safari auto-zooms when you focus an input with font-size < 16px.
+   Keep form controls at 16px on phones to stop the zoom; desktop keeps the
+   compact text-sm look (this only applies below the 768px breakpoint). */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }

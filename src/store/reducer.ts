@@ -76,7 +76,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
 
     case 'ADD_TRANSACTION':
-      return { ...state, transactions: [...state.transactions, action.payload] };
+      return {
+        ...state,
+        transactions: [...state.transactions, { ...action.payload, seq: state.nextSeq }],
+        nextSeq: state.nextSeq + 1,
+      };
 
     case 'UPDATE_TRANSACTION':
       return {
@@ -118,7 +122,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           currentBalance: state.balance.currentBalance - actualAmount,
           lastUpdated: transaction.date,
         },
-        transactions: [...state.transactions, transaction],
+        transactions: [...state.transactions, { ...transaction, seq: state.nextSeq }],
+        nextSeq: state.nextSeq + 1,
       };
     }
 
@@ -129,7 +134,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           currentBalance: state.balance.currentBalance - action.payload.actualAmount,
           lastUpdated: action.payload.transaction.date,
         },
-        transactions: [...state.transactions, action.payload.transaction],
+        transactions: [...state.transactions, { ...action.payload.transaction, seq: state.nextSeq }],
+        nextSeq: state.nextSeq + 1,
       };
 
     case 'QUICK_ADD_EXPENSE':
@@ -139,11 +145,57 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           currentBalance: state.balance.currentBalance - action.payload.amount,
           lastUpdated: action.payload.transaction.date,
         },
-        transactions: [...state.transactions, action.payload.transaction],
+        transactions: [...state.transactions, { ...action.payload.transaction, seq: state.nextSeq }],
+        nextSeq: state.nextSeq + 1,
       };
+
+    case 'SPEND_FROM_SAVINGS': {
+      const { goalId, amount, transaction, intent, newTargetDate } = action.payload;
+      return {
+        ...state,
+        goals: state.goals.map(g => {
+          if (g.id !== goalId) return g;
+          const updated = { ...g, accumulatedTotal: Math.max(0, g.accumulatedTotal - amount) };
+          if (intent === 'part_of_goal' && updated.targetAmount != null) {
+            updated.targetAmount = Math.max(0, updated.targetAmount - amount);
+          } else if (intent === 'withdrawal' && newTargetDate) {
+            updated.targetDate = newTargetDate;
+          }
+          return updated;
+        }),
+        balance: {
+          currentBalance: state.balance.currentBalance - amount,
+          lastUpdated: transaction.date,
+        },
+        transactions: [...state.transactions, { ...transaction, seq: state.nextSeq }],
+        nextSeq: state.nextSeq + 1,
+      };
+    }
 
     case 'SET_SUBSCRIPTION_LOG':
       return { ...state, subscriptionLog: action.payload };
+
+    case 'ADD_GOAL':
+      return { ...state, goals: [...state.goals, action.payload] };
+
+    case 'UPDATE_GOAL':
+      return {
+        ...state,
+        goals: state.goals.map(g => g.id === action.payload.id ? action.payload : g),
+      };
+
+    case 'DELETE_GOAL':
+      return { ...state, goals: state.goals.filter(g => g.id !== action.payload) };
+
+    case 'DEPOSIT_TO_GOAL':
+      return {
+        ...state,
+        goals: state.goals.map(g =>
+          g.id === action.payload.goalId
+            ? { ...g, accumulatedTotal: g.accumulatedTotal + action.payload.amount }
+            : g
+        ),
+      };
 
     case 'IMPORT_STATE':
       return action.payload;

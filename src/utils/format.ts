@@ -18,17 +18,11 @@ export function todayString(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const FREQUENCY_LABELS: Record<string, string> = {
-  weekly: 'Weekly',
-  biweekly: 'Every 2 weeks',
-  semimonthly: 'Twice a month',
-  monthly: 'Monthly',
-  quarterly: 'Quarterly',
-  annual: 'Annually',
-};
-
-export function formatFrequency(freq: string): string {
-  return FREQUENCY_LABELS[freq] ?? freq;
+export function formatRecurrence(interval: number, unit: 'week' | 'month' | 'year'): string {
+  if (interval === 1) {
+    return unit === 'week' ? 'Weekly' : unit === 'month' ? 'Monthly' : 'Yearly';
+  }
+  return `Every ${interval} ${unit}s`;
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

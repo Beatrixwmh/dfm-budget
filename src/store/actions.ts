@@ -1,4 +1,4 @@
-import type { AppState, Category, IncomeSource, Expense, CustomHoliday, Transaction, OverdueHold } from '../engine/types';
+import type { AppState, Category, IncomeSource, Expense, CustomHoliday, Transaction, OverdueHold, Goal } from '../engine/types';
 
 export type AppAction =
   | { type: 'SET_BALANCE'; payload: { currentBalance: number; lastUpdated: string } }
@@ -24,5 +24,16 @@ export type AppAction =
   | { type: 'PAY_OVERDUE'; payload: { expenseId: string; actualAmount: number; transaction: Transaction } }
   | { type: 'PAY_EXPENSE'; payload: { actualAmount: number; transaction: Transaction } }
   | { type: 'QUICK_ADD_EXPENSE'; payload: { amount: number; transaction: Transaction } }
+  | { type: 'SPEND_FROM_SAVINGS'; payload: {
+      goalId: string;
+      amount: number;
+      transaction: Transaction;
+      intent?: 'part_of_goal' | 'withdrawal';
+      newTargetDate?: string;
+    } }
   | { type: 'SET_SUBSCRIPTION_LOG'; payload: { lastProcessedDate: string } }
+  | { type: 'ADD_GOAL'; payload: Goal }
+  | { type: 'UPDATE_GOAL'; payload: Goal }
+  | { type: 'DELETE_GOAL'; payload: string }
+  | { type: 'DEPOSIT_TO_GOAL'; payload: { goalId: string; amount: number } }
   | { type: 'IMPORT_STATE'; payload: AppState };

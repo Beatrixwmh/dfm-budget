@@ -1,26 +1,40 @@
 import { useEffect, useRef } from 'react';
 import { useAppState, useAppDispatch } from '../store/hooks';
 import { useSubscriptionAutoLog } from './useSubscriptionAutoLog';
+import { useAutoUnpause } from './useAutoUnpause';
 import { detectOverdueExpenses } from '../engine/overdueDetector';
+import { toDateKey } from '../engine/holidays';
 
 /**
  * Orchestrates all side effects on app mount:
- * 1. Subscription auto-logging
- * 2. Overdue expense detection
+ * 1. Clear stale overdue holds (due today or later — created by old rounding bug)
+ * 2. Subscription auto-logging
+ * 3. Overdue expense detection
+ * 4. Savings goal auto-unpause checks
  */
 export function useTransactionSideEffects() {
   useSubscriptionAutoLog();
+  const autoUnpause = useAutoUnpause();
 
   const state = useAppState();
   const dispatch = useAppDispatch();
   const hasDetectedOverdue = useRef(false);
 
-  // Detect overdue expenses on mount
   useEffect(() => {
     if (hasDetectedOverdue.current) return;
     hasDetectedOverdue.current = true;
 
     const today = new Date();
+    const todayKey = toDateKey(today);
+
+    // Clear any stale holds whose due date is today or later (shouldn't be overdue)
+    for (const hold of state.overdueHolds) {
+      if (hold.originalDueDate >= todayKey) {
+        dispatch({ type: 'DISMISS_OVERDUE', payload: hold.expenseId });
+      }
+    }
+
+    // Detect genuinely overdue expenses
     const newHolds = detectOverdueExpenses(
       state.expenses,
       state.transactions,
@@ -33,4 +47,6 @@ export function useTransactionSideEffects() {
       dispatch({ type: 'ADD_OVERDUE_HOLD', payload: hold });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return autoUnpause;
 }

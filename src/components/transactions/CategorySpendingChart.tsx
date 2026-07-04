@@ -117,6 +117,7 @@ export function CategorySpendingChart() {
             <Tooltip
               contentStyle={{ backgroundColor: '#1e2233', border: '1px solid #2e3345', borderRadius: 8 }}
               labelStyle={{ color: '#8b90a5' }}
+              cursor={{ fill: 'rgba(255, 255, 255, 0.06)' }}
               formatter={(value: number, name: string) => {
                 const cat = usedCategories.find(c => c.id === name);
                 return [formatCurrency(value), cat?.name ?? 'Uncategorized'];

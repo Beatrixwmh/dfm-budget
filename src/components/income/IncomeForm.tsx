@@ -14,7 +14,8 @@ interface Props {
 }
 
 const DEFAULT_SCHEDULE: Schedule = {
-  frequency: 'biweekly',
+  interval: 2,
+  unit: 'week',
   dayOfMonth: null,
   dayOfWeek: 5,
   startDate: todayString(),
@@ -41,9 +42,32 @@ export function IncomeForm({ open, onClose, onSave, initial }: Props) {
     onClose();
   };
 
+  const canSave = name.trim() !== '' && amount > 0;
+  const FORM_ID = 'income-form';
+
   return (
-    <Modal open={open} onClose={onClose} title={initial ? 'Edit Income' : 'New Income Source'}>
-      <div className="flex flex-col gap-4">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={initial ? 'Edit Income' : 'New Income Source'}
+      footer={
+        // type="submit" + form attr submits the <form> below — works on a single
+        // tap even on iOS (where the keyboard-dismiss tap can swallow a click).
+        <button
+          type="submit"
+          form={FORM_ID}
+          disabled={!canSave}
+          className="w-full rounded-lg bg-accent py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-40"
+        >
+          {initial ? 'Save Changes' : 'Add Income'}
+        </button>
+      }
+    >
+      <form
+        id={FORM_ID}
+        onSubmit={e => { e.preventDefault(); handleSave(); }}
+        className="flex flex-col gap-4"
+      >
         <div>
           <label className="mb-1.5 block text-sm text-text-secondary">Name</label>
           <input
@@ -73,14 +97,10 @@ export function IncomeForm({ open, onClose, onSave, initial }: Props) {
           <ScheduleForm value={schedule} onChange={setSchedule} />
         </div>
 
-        <button
-          onClick={handleSave}
-          disabled={!name.trim() || amount <= 0}
-          className="mt-2 rounded-lg bg-accent py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-40"
-        >
-          {initial ? 'Save Changes' : 'Add Income'}
-        </button>
-      </div>
+        {!canSave && (
+          <p className="text-xs text-text-muted">Enter a name and an amount to continue.</p>
+        )}
+      </form>
     </Modal>
   );
 }

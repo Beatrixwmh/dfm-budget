@@ -1,4 +1,13 @@
-import type { CashEvent, Category, BarSegment, BarBreakdown } from './types';
+import type { CashEvent, Category, BarSegment, BarBreakdown, Transaction } from './types';
+
+interface ExpenseObligation {
+  sourceId: string;
+  sourceName: string;
+  categoryId: string | null;
+  nextDue: number;
+  nextDueDate: string;
+  futureTotal: number; // sum of all occurrences beyond the next one
+}
 
 export function calculateBarBreakdown(
   currentBalance: number,
@@ -7,7 +16,9 @@ export function calculateBarBreakdown(
   events: CashEvent[],
   categories: Category[],
   today: string,
-  overdueHoldTotal: number = 0
+  overdueHoldTotal: number = 0,
+  transactions: Transaction[] = [],
+  savingsTotal: number = 0
 ): BarBreakdown {
   const categoryMap = new Map(categories.map(c => [c.id, c]));
 
@@ -17,86 +28,92 @@ export function calculateBarBreakdown(
     : 30;
 
   const freeMoney = Math.max(0, dailyFreeMoney * daysToNextIncome);
-  const totalAllocated = currentBalance - freeMoney - buffer;
 
-  const expensesByCategory = new Map<string, {
-    due: number;
-    allocated: number;
-    dueDate: string;
-    names: string[];
-  }>();
-
-  const seen = new Set<string>();
-  for (const event of events) {
-    if (event.amount >= 0) continue;
-    if (event.date <= today) continue;
-    if (seen.has(event.sourceId)) continue;
-    seen.add(event.sourceId);
-
-    const due = Math.abs(event.amount);
-    const daysTillDue = Math.max(1, daysBetween(today, event.date));
-    const allocated = Math.min(due, (due / daysTillDue) * daysToNextIncome);
-
-    const catId = event.categoryId ?? '__uncategorized__';
-    const existing = expensesByCategory.get(catId);
-    if (existing) {
-      existing.due += due;
-      existing.allocated += allocated;
-      if (!existing.names.includes(event.sourceName)) {
-        existing.names.push(event.sourceName);
-      }
-      if (event.date < existing.dueDate) {
-        existing.dueDate = event.date;
-      }
-    } else {
-      expensesByCategory.set(catId, {
-        due,
-        allocated,
-        dueDate: event.date,
-        names: [event.sourceName],
-      });
+  // Build a map of expenseId → set of paid dueDates
+  const paidOccurrences = new Map<string, Set<string>>();
+  for (const tx of transactions) {
+    if (tx.expenseId && tx.dueDate) {
+      const set = paidOccurrences.get(tx.expenseId) ?? new Set();
+      set.add(tx.dueDate);
+      paidOccurrences.set(tx.expenseId, set);
     }
   }
 
-  let totalNamedAllocations = 0;
+  // Collect ALL unpaid future occurrences per expense
+  const expenseMap = new Map<string, ExpenseObligation>();
+
+  for (const event of events) {
+    if (event.amount >= 0) continue;
+    if (event.date <= today) continue;
+
+    // Skip paid occurrences
+    const paidDates = paidOccurrences.get(event.sourceId);
+    if (paidDates && paidDates.has(event.date)) continue;
+
+    const due = Math.abs(event.amount);
+    const existing = expenseMap.get(event.sourceId);
+
+    if (!existing) {
+      // First unpaid occurrence = the "next" one
+      expenseMap.set(event.sourceId, {
+        sourceId: event.sourceId,
+        sourceName: event.sourceName,
+        categoryId: event.categoryId,
+        nextDue: due,
+        nextDueDate: event.date,
+        futureTotal: 0,
+      });
+    } else {
+      // Subsequent occurrences go into futureTotal
+      existing.futureTotal += due;
+    }
+  }
+
+  // Calculate total obligations across all expenses (next + future)
+  const obligations = [...expenseMap.values()];
+  const grandTotal = obligations.reduce((s, o) => s + o.nextDue + o.futureTotal, 0);
+
+  // Available money for obligations = balance minus buffer, free money, overdue holds
+  const availableForObligations = Math.max(0, currentBalance - freeMoney - buffer - overdueHoldTotal);
+
+  // Distribute available money proportionally across expenses
   const segments: BarSegment[] = [];
 
-  for (const [catId, data] of expensesByCategory) {
-    const cat = categoryMap.get(catId);
+  for (const ob of obligations) {
+    const totalObligation = ob.nextDue + ob.futureTotal;
+    const share = grandTotal > 0
+      ? (totalObligation / grandTotal) * availableForObligations
+      : 0;
+
+    // Split the share: fund next occurrence first, remainder goes to future
+    const nextAllocated = Math.min(ob.nextDue, share);
+    const futureAllocated = Math.max(0, share - nextAllocated);
+
+    const cat = ob.categoryId ? categoryMap.get(ob.categoryId) : null;
+
     segments.push({
-      label: cat?.name ?? data.names.join(', '),
-      amount: data.allocated,
+      label: ob.sourceName,
+      amount: share,
       color: cat?.color ?? '#6b7280',
-      categoryId: catId === '__uncategorized__' ? null : catId,
+      categoryId: ob.categoryId,
       type: 'obligation',
       funding: {
-        allocated: data.allocated,
-        due: data.due,
-        dueDate: data.dueDate,
-        expenseNames: data.names,
+        nextDue: ob.nextDue,
+        nextDueDate: ob.nextDueDate,
+        nextAllocated,
+        futureTotal: ob.futureTotal,
+        futureAllocated,
       },
     });
-    totalNamedAllocations += data.allocated;
   }
 
   segments.sort((a, b) => b.amount - a.amount);
-
-  const futureReserves = Math.max(0, totalAllocated - totalNamedAllocations);
-  if (futureReserves > 0) {
-    segments.push({
-      label: 'Future Reserves',
-      amount: futureReserves,
-      color: '#94a3b8',
-      categoryId: null,
-      type: 'future_reserves',
-    });
-  }
 
   if (buffer > 0) {
     segments.push({
       label: 'Safety Buffer',
       amount: buffer,
-      color: '#f59e0b',
+      color: '#e0b074',
       categoryId: null,
       type: 'buffer',
     });
@@ -106,16 +123,26 @@ export function calculateBarBreakdown(
     segments.push({
       label: 'Pending Bills',
       amount: overdueHoldTotal,
-      color: '#fbbf24',
+      color: '#d4be7e',
       categoryId: null,
       type: 'overdue_hold',
     });
   }
 
+  if (savingsTotal > 0) {
+    segments.push({
+      label: 'Savings',
+      amount: savingsTotal,
+      color: '#6fb3ac',
+      categoryId: null,
+      type: 'savings',
+    });
+  }
+
   segments.push({
     label: 'Free Money',
-    amount: freeMoney,
-    color: '#22c55e',
+    amount: Math.max(0, freeMoney - savingsTotal),
+    color: '#6dbf9c',
     categoryId: null,
     type: 'free_money',
   });

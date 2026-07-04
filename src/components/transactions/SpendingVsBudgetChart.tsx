@@ -14,23 +14,19 @@ import { TimescaleSelector } from '../charts/TimescaleSelector';
 import { CategorySelect } from '../shared/CategorySelect';
 import { formatCurrency } from '../../utils/format';
 import type { Timescale } from '../charts/chartHelpers';
-import type { Transaction, Expense, Category } from '../../engine/types';
+import type { Transaction, Expense, Category, Schedule } from '../../engine/types';
 
 const TIMESCALE_DAYS: Record<Timescale, number> = {
   '7d': 7, '30d': 30, '90d': 90, '6mo': 182, '1yr': 365, '2yr': 730,
 };
 
-// Convert any schedule frequency to a monthly equivalent multiplier
-function monthlyMultiplier(freq: string): number {
-  switch (freq) {
-    case 'weekly': return 52 / 12;
-    case 'biweekly': return 26 / 12;
-    case 'semimonthly': return 2;
-    case 'monthly': return 1;
-    case 'quarterly': return 1 / 3;
-    case 'annual': return 1 / 12;
-    default: return 1;
-  }
+// Convert a schedule to its monthly-equivalent occurrence count
+function monthlyMultiplier(s: Schedule): number {
+  if (s.semimonthlyDays) return 2;
+  const n = Math.max(1, s.interval);
+  if (s.unit === 'week') return (52 / 12) / n;
+  if (s.unit === 'month') return 1 / n;
+  return 1 / (12 * n); // year
 }
 
 interface BudgetVsActual {
@@ -59,7 +55,7 @@ export function SpendingVsBudgetChart() {
       if (!exp.schedule) continue;
       if (categoryFilter && exp.categoryId !== categoryFilter) continue;
       const catId = exp.categoryId || '__uncategorized__';
-      const monthlyAmount = exp.amount * monthlyMultiplier(exp.schedule.frequency);
+      const monthlyAmount = exp.amount * monthlyMultiplier(exp.schedule);
       const scaled = monthlyAmount * months;
       budgetByCat.set(catId, (budgetByCat.get(catId) ?? 0) + scaled);
     }
@@ -133,25 +129,26 @@ export function SpendingVsBudgetChart() {
               <Tooltip
                 contentStyle={{ backgroundColor: '#1e2233', border: '1px solid #2e3345', borderRadius: 8 }}
                 labelStyle={{ color: '#8b90a5' }}
+                cursor={{ fill: 'rgba(255, 255, 255, 0.06)' }}
                 formatter={(value: number, name: string) => [formatCurrency(value), name === 'budgeted' ? 'Budgeted' : 'Actual']}
               />
-              <Bar dataKey="budgeted" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={14} name="budgeted" />
+              <Bar dataKey="budgeted" fill="#7d9fd4" radius={[0, 4, 4, 0]} barSize={14} name="budgeted" />
               <Bar dataKey="actual" radius={[0, 4, 4, 0]} barSize={14} name="actual">
                 {data.map((entry, i) => (
-                  <Cell key={i} fill={entry.over ? '#ef4444' : '#22c55e'} />
+                  <Cell key={i} fill={entry.over ? '#d98f8f' : '#6dbf9c'} />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
           <div className="mt-2 flex items-center justify-center gap-4 text-xs text-text-muted">
             <span className="flex items-center gap-1">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#3b82f6]" /> Budgeted
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#7d9fd4]" /> Budgeted
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#22c55e]" /> Actual
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#6dbf9c]" /> Actual
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#ef4444]" /> Over budget
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#d98f8f]" /> Over budget
             </span>
           </div>
         </>

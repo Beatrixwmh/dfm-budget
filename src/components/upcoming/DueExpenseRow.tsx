@@ -10,7 +10,7 @@ interface DueExpense {
   amount: number;
   date: string;
   categoryId: string;
-  type: 'recurring' | 'subscription' | 'one_time' | 'savings_goal';
+  type: 'recurring' | 'subscription' | 'one_time';
   isVariable: boolean;
 }
 

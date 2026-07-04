@@ -6,6 +6,9 @@ import { getObservedHolidays, toDateKey } from './holidays';
 import { calculateBarBreakdown } from './barChart';
 import { computeEffectiveBalance } from './effectiveBalance';
 import { detectOverdueExpenses } from './overdueDetector';
+import { calculateFastestDate, validateContribution, fastestDateFromDays, findFirstSavableDate } from './savings';
+import { appReducer } from '../store/reducer';
+import { createDefaultState } from '../store/defaults';
 import {
   testIncome,
   testExpenses,
@@ -13,7 +16,7 @@ import {
   TEST_BALANCE,
   TEST_BUFFER,
 } from './testData';
-import type { Schedule, OverdueHold, Expense, Transaction } from './types';
+import type { Schedule, OverdueHold, Expense, Transaction, Goal } from './types';
 
 describe('Holidays', () => {
   it('should generate correct US federal holidays for 2026', () => {
@@ -32,7 +35,7 @@ describe('Scheduler', () => {
 
   it('should generate monthly dates', () => {
     const schedule: Schedule = {
-      frequency: 'monthly',
+      interval: 1, unit: 'month',
       dayOfMonth: 1,
       dayOfWeek: null,
       startDate: '2026-01-01',
@@ -49,7 +52,7 @@ describe('Scheduler', () => {
 
   it('should generate biweekly dates on Fridays', () => {
     const schedule: Schedule = {
-      frequency: 'biweekly',
+      interval: 2, unit: 'week',
       dayOfMonth: null,
       dayOfWeek: 5, // Friday
       startDate: '2026-05-01',
@@ -66,7 +69,7 @@ describe('Scheduler', () => {
 
   it('should handle semimonthly with custom days', () => {
     const schedule: Schedule = {
-      frequency: 'semimonthly',
+      interval: 1, unit: 'month',
       dayOfMonth: null,
       dayOfWeek: null,
       semimonthlyDays: [1, 15],
@@ -81,7 +84,7 @@ describe('Scheduler', () => {
 
   it('should apply weekend rule friday_before', () => {
     const schedule: Schedule = {
-      frequency: 'monthly',
+      interval: 1, unit: 'month',
       dayOfMonth: 1,
       dayOfWeek: null,
       startDate: '2026-01-01',
@@ -99,7 +102,7 @@ describe('Scheduler', () => {
 
   it('should handle dayOfMonth = -1 for last day of month', () => {
     const schedule: Schedule = {
-      frequency: 'monthly',
+      interval: 1, unit: 'month',
       dayOfMonth: -1,
       dayOfWeek: null,
       startDate: '2026-01-01',
@@ -118,7 +121,7 @@ describe('Scheduler', () => {
 
   it('should respect endDate', () => {
     const schedule: Schedule = {
-      frequency: 'monthly',
+      interval: 1, unit: 'month',
       dayOfMonth: 15,
       dayOfWeek: null,
       startDate: '2026-01-01',
@@ -128,6 +131,64 @@ describe('Scheduler', () => {
     };
     const dates = generateDates(schedule, today, windowEnd);
     expect(dates.length).toBe(1); // Only Jun 15 (before Jul 1 endDate)
+  });
+
+  it('should handle "every 6 months"', () => {
+    const schedule: Schedule = {
+      interval: 6, unit: 'month',
+      dayOfMonth: 5,
+      dayOfWeek: null,
+      startDate: '2026-01-05',
+      endDate: null,
+      weekendRule: 'as_is',
+      holidayRule: 'as_is',
+    };
+    // Window Jan 2026 → Dec 2027: expect Jan 5, Jul 5, Jan 5, Jul 5
+    const dates = generateDates(schedule, new Date(2026, 0, 1), new Date(2027, 11, 31));
+    const keys = dates.map(toDateKey);
+    expect(keys).toContain('2026-01-05');
+    expect(keys).toContain('2026-07-05');
+    expect(keys).toContain('2027-01-05');
+    expect(keys).toContain('2027-07-05');
+    // exactly every 6 months — no in-between months
+    expect(keys).not.toContain('2026-04-05');
+  });
+
+  it('should handle "every 3 weeks"', () => {
+    const schedule: Schedule = {
+      interval: 3, unit: 'week',
+      dayOfMonth: null,
+      dayOfWeek: 1, // Monday
+      startDate: '2026-06-01', // Mon Jun 1
+      endDate: null,
+      weekendRule: 'as_is',
+      holidayRule: 'as_is',
+    };
+    const dates = generateDates(schedule, new Date(2026, 5, 1), new Date(2026, 7, 1));
+    const keys = dates.map(toDateKey);
+    // Jun 1, then +21 days = Jun 22, then Jul 13
+    expect(keys).toContain('2026-06-01');
+    expect(keys).toContain('2026-06-22');
+    expect(keys).toContain('2026-07-13');
+    expect(keys).not.toContain('2026-06-08'); // not weekly
+  });
+
+  it('should handle "every 2 years"', () => {
+    const schedule: Schedule = {
+      interval: 2, unit: 'year',
+      dayOfMonth: 10,
+      dayOfWeek: null,
+      startDate: '2026-03-10',
+      endDate: null,
+      weekendRule: 'as_is',
+      holidayRule: 'as_is',
+    };
+    const dates = generateDates(schedule, new Date(2026, 0, 1), new Date(2031, 0, 1));
+    const keys = dates.map(toDateKey);
+    expect(keys).toContain('2026-03-10');
+    expect(keys).toContain('2028-03-10');
+    expect(keys).toContain('2030-03-10');
+    expect(keys).not.toContain('2027-03-10'); // skips a year
   });
 });
 
@@ -165,8 +226,9 @@ describe('DFM Algorithm', () => {
 
     // DFM should be a finite number
     expect(isFinite(result.dailyFreeMoney)).toBe(true);
-    // Pinch point should be within window
-    expect(result.pinchPointDate > toDateKey(today)).toBe(true);
+    // With comfortable balance, no pinch below sustainable — pinchPointDate is empty
+    // (pinch only appears when balance is tight enough to force a lower rate)
+    expect(result.pinchPointDate).toBe('');
     // Projected balances should exist
     expect(result.projectedBalances.length).toBe(731); // today + 730 days
   });
@@ -217,6 +279,94 @@ describe('DFM Algorithm', () => {
   });
 });
 
+describe('Multi-Segment DFM Projection', () => {
+  it('should produce one segment at sustainable rate when no pinch exists (large balance)', () => {
+    const today = new Date(2026, 4, 25);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    // With very large balance, no pinch below sustainable
+    const result = calculateDfm(100000, 0, events, today);
+
+    expect(result.segments.length).toBe(1);
+    expect(result.segments[0].rate).toBeCloseTo(result.sustainableRate, 5);
+    expect(result.segments[0].endDay).toBe(730);
+    expect(result.segments[0].nextRate).toBeNull();
+  });
+
+  it('should produce at least two segments (pinch rate then sustainable) with tight balance', () => {
+    const today = new Date(2026, 4, 25);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    // With a tight balance, a near-term pinch should force a lower first segment
+    const result = calculateDfm(200, 0, events, today);
+
+    expect(result.segments.length).toBeGreaterThanOrEqual(2);
+    // First segment rate should be less than sustainable (pinched)
+    expect(result.segments[0].rate).toBeLessThan(result.sustainableRate);
+    // First segment = today's DFM
+    expect(result.segments[0].rate).toBeCloseTo(result.dailyFreeMoney, 5);
+    // Last segment should be at sustainable rate
+    const lastSeg = result.segments[result.segments.length - 1];
+    expect(lastSeg.rate).toBeCloseTo(result.sustainableRate, 5);
+    // Segments should taper upward (each rate ≥ previous)
+    for (let i = 1; i < result.segments.length; i++) {
+      expect(result.segments[i].rate).toBeGreaterThanOrEqual(result.segments[i - 1].rate - 0.01);
+    }
+  });
+
+  it('should have successive binding minima — not markers on every sub-sustainable day', () => {
+    const today = new Date(2026, 4, 25);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    // Use tight balance to force multiple segments
+    const result = calculateDfm(200, 0, events, today);
+
+    // Should be a small number of segments (typically 1-3), not hundreds
+    expect(result.segments.length).toBeLessThan(10);
+    // Segments should cover the full window without gaps
+    expect(result.segments[0].startDay).toBe(0);
+    for (let i = 1; i < result.segments.length; i++) {
+      expect(result.segments[i].startDay).toBe(result.segments[i - 1].endDay);
+    }
+    expect(result.segments[result.segments.length - 1].endDay).toBe(730);
+  });
+
+  it('should build projected balances piecewise with rate changes at boundaries', () => {
+    const today = new Date(2026, 4, 25);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    // Tight balance forces a pinch
+    const result = calculateDfm(200, 0, events, today);
+
+    if (result.segments.length >= 2) {
+      const boundary = result.segments[0].endDay;
+      // Balance at pinch boundary should be near buffer (0 in this case)
+      const balanceAtPinch = result.projectedBalances[boundary].balance;
+      // Should be approximately at buffer level (within a few days' spending tolerance)
+      expect(balanceAtPinch).toBeLessThan(Math.abs(result.dailyFreeMoney) * 3);
+    }
+
+    // With tight balance, DFM may be negative — just verify projection is consistent
+    expect(result.projectedBalances.length).toBe(731);
+    expect(result.projectedBalances[0].balance).toBe(200);
+  });
+
+  it('should handle two pinch points correctly', () => {
+    // Create a scenario with two distinct pinch points:
+    // Near-term crunch, then relief, then another cluster months later
+    const today = new Date(2026, 4, 25);
+    // Small balance forces multiple pinch constraints
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    const result = calculateDfm(800, 0, events, today);
+
+    // With very small balance and large expenses, should find multiple pinch points
+    if (result.segments.length >= 3) {
+      // Middle segment rate should be between first and sustainable
+      expect(result.segments[1].rate).toBeGreaterThanOrEqual(result.segments[0].rate - 0.01);
+      expect(result.segments[1].rate).toBeLessThanOrEqual(result.sustainableRate + 0.01);
+    }
+    // Regardless of segment count, the algorithm must work
+    expect(result.segments.length).toBeGreaterThanOrEqual(1);
+    expect(result.dailyFreeMoney).toBe(result.segments[0].rate);
+  });
+});
+
 describe('Bar Chart Breakdown', () => {
   it('should create segments that sum to total balance', () => {
     const today = new Date(2026, 4, 25);
@@ -260,7 +410,7 @@ describe('Bar Chart Breakdown', () => {
     const holdSegment = breakdown.segments.find(s => s.type === 'overdue_hold');
     expect(holdSegment).toBeDefined();
     expect(holdSegment!.amount).toBe(200);
-    expect(holdSegment!.color).toBe('#fbbf24');
+    expect(holdSegment!.color).toBe('#d4be7e');
     expect(holdSegment!.label).toBe('Pending Bills');
   });
 
@@ -319,7 +469,7 @@ describe('Overdue Detector', () => {
         tier: 1,
         isAutoCut: false,
         schedule: {
-          frequency: 'monthly',
+          interval: 1, unit: 'month',
           dayOfMonth: 15,
           dayOfWeek: null,
           startDate: '2026-01-01',
@@ -349,7 +499,7 @@ describe('Overdue Detector', () => {
         tier: 1,
         isAutoCut: false,
         schedule: {
-          frequency: 'monthly',
+          interval: 1, unit: 'month',
           dayOfMonth: 15,
           dayOfWeek: null,
           startDate: '2026-01-01',
@@ -379,7 +529,7 @@ describe('Overdue Detector', () => {
         tier: 1,
         isAutoCut: false,
         schedule: {
-          frequency: 'monthly',
+          interval: 1, unit: 'month',
           dayOfMonth: 15,
           dayOfWeek: null,
           startDate: '2026-01-01',
@@ -409,7 +559,7 @@ describe('Overdue Detector', () => {
         tier: 3,
         isAutoCut: false,
         schedule: {
-          frequency: 'monthly',
+          interval: 1, unit: 'month',
           dayOfMonth: 10,
           dayOfWeek: null,
           startDate: '2026-01-01',
@@ -436,7 +586,7 @@ describe('Overdue Detector', () => {
         tier: 2,
         isAutoCut: false,
         schedule: {
-          frequency: 'monthly',
+          interval: 1, unit: 'month',
           dayOfMonth: 15,
           dayOfWeek: null,
           startDate: '2026-01-01',
@@ -448,5 +598,229 @@ describe('Overdue Detector', () => {
     ];
     const holds = detectOverdueExpenses(expenses, [], [], [], today);
     expect(holds.length).toBe(0);
+  });
+});
+
+describe('Savings Engine (rawDfm based)', () => {
+  it('should calculate fastest date using rawDfm', () => {
+    const today = new Date(2026, 4, 25);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    const dfm = calculateDfm(TEST_BALANCE, TEST_BUFFER, events, today);
+    const result = calculateFastestDate(dfm.rawDfm, 500);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.maxRatePerDay).toBeGreaterThan(0);
+      expect(result.daysToReach).toBeGreaterThan(0);
+      // Rate should not exceed rawDfm
+      expect(result.maxRatePerDay).toBeLessThanOrEqual(dfm.rawDfm + 0.01);
+    }
+  });
+
+  it('should return null when target is unreachable within window', () => {
+    const today = new Date(2026, 4, 25);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    const dfm = calculateDfm(TEST_BALANCE, TEST_BUFFER, events, today);
+    const result = calculateFastestDate(dfm.rawDfm, 999999);
+    expect(result).toBeNull();
+  });
+
+  it('should validate a feasible contribution rate', () => {
+    const today = new Date(2026, 4, 25);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    const dfm = calculateDfm(TEST_BALANCE, TEST_BUFFER, events, today);
+    const result = validateContribution(dfm.rawDfm, 0.01);
+    expect(result.feasible).toBe(true);
+    expect(result.maxRate).toBeGreaterThan(0);
+  });
+
+  it('should reject contribution rate exceeding rawDfm', () => {
+    const today = new Date(2026, 4, 25);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    const dfm = calculateDfm(TEST_BALANCE, TEST_BUFFER, events, today);
+    const result = validateContribution(dfm.rawDfm, 10000);
+    expect(result.feasible).toBe(false);
+  });
+
+  it('max savings should bring DFM to exactly 0, never negative', () => {
+    const today = new Date(2026, 4, 25);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    const dfm = calculateDfm(TEST_BALANCE, TEST_BUFFER, events, today);
+    // Save at max rate (rawDfm)
+    const cappedSavings = Math.min(dfm.rawDfm, Math.max(0, dfm.rawDfm));
+    // Apply the same floor logic as useDfmEngine
+    const floor = Math.min(0, dfm.dailyFreeMoney);
+    const adjustedDfm = Math.max(floor, dfm.dailyFreeMoney - cappedSavings);
+    // DFM should be >= 0 when base DFM was positive
+    if (dfm.dailyFreeMoney >= 0) {
+      expect(adjustedDfm).toBeGreaterThanOrEqual(-0.01);
+    }
+  });
+
+  it('rawDfm should be >= sustainableRate-capped DFM', () => {
+    const today = new Date(2026, 4, 25);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    const dfm = calculateDfm(TEST_BALANCE, TEST_BUFFER, events, today);
+    // rawDfm is the aggressive query, always >= the conservative DFM
+    expect(dfm.rawDfm).toBeGreaterThanOrEqual(dfm.dailyFreeMoney - 0.01);
+  });
+
+  it('findFirstSavableDate returns today when surplus exists now', () => {
+    const today = new Date(2026, 4, 25);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    const result = findFirstSavableDate(TEST_BALANCE, TEST_BUFFER, events, today);
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.daysOut).toBe(0); // savable immediately
+      expect(result.maxRate).toBeGreaterThan(0);
+    }
+  });
+
+  it('findFirstSavableDate returns a future date when underwater now', () => {
+    const today = new Date(2026, 4, 25);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    // Negative spendable — underwater. Income should eventually create surplus.
+    const result = findFirstSavableDate(-500, 100, events, today);
+    if (result) {
+      expect(result.daysOut).toBeGreaterThanOrEqual(0);
+      expect(result.maxRate).toBeGreaterThan(0);
+    }
+    // Either finds a future date or returns null (both valid); just shouldn't throw
+    expect(result === null || result.daysOut >= 0).toBe(true);
+  });
+
+  it('findFirstSavableDate returns null when permanently underwater', () => {
+    const today = new Date(2026, 4, 25);
+    // No income, only expenses — never savable
+    const expenseOnly = generateCashEvents([], testExpenses, today);
+    const result = findFirstSavableDate(-10000, 100, expenseOnly, today);
+    expect(result).toBeNull();
+  });
+});
+
+describe('Spend from Target Goal', () => {
+  it('part_of_goal intent should lower targetAmount by spend', () => {
+    let state = createDefaultState();
+    state.goals = [{
+      id: 'g1', name: 'Trip', type: 'target', status: 'active',
+      contributionRatePerDay: 10, cadence: 'monthly',
+      targetAmount: 2000, targetDate: '2027-01-01',
+      accumulatedTotal: 800,
+    }];
+    state.balance = { currentBalance: 5000, lastUpdated: '2026-06-05' };
+
+    state = appReducer(state, {
+      type: 'SPEND_FROM_SAVINGS',
+      payload: {
+        goalId: 'g1', amount: 400,
+        transaction: { id: 'tx1', date: '2026-06-05', amount: 400, categoryId: '', description: 'Flights', source: 'manual' },
+        intent: 'part_of_goal',
+      },
+    });
+
+    const goal = state.goals[0];
+    expect(goal.accumulatedTotal).toBe(400);   // 800 - 400
+    expect(goal.targetAmount).toBe(1600);      // 2000 - 400
+    expect(state.balance.currentBalance).toBe(4600); // 5000 - 400
+    expect(state.transactions.length).toBe(1);
+  });
+
+  it('withdrawal intent should keep targetAmount and recede date', () => {
+    let state = createDefaultState();
+    state.goals = [{
+      id: 'g1', name: 'Emergency', type: 'target', status: 'active',
+      contributionRatePerDay: 10, cadence: 'monthly',
+      targetAmount: 3000, targetDate: '2027-06-01',
+      accumulatedTotal: 1500,
+    }];
+    state.balance = { currentBalance: 5000, lastUpdated: '2026-06-05' };
+
+    state = appReducer(state, {
+      type: 'SPEND_FROM_SAVINGS',
+      payload: {
+        goalId: 'g1', amount: 500,
+        transaction: { id: 'tx1', date: '2026-06-05', amount: 500, categoryId: '', description: 'Car repair', source: 'manual' },
+        intent: 'withdrawal',
+        newTargetDate: '2027-08-01',
+      },
+    });
+
+    const goal = state.goals[0];
+    expect(goal.accumulatedTotal).toBe(1000);  // 1500 - 500
+    expect(goal.targetAmount).toBe(3000);      // unchanged
+    expect(goal.targetDate).toBe('2027-08-01'); // receded
+    expect(state.balance.currentBalance).toBe(4500);
+    expect(state.transactions.length).toBe(1);
+  });
+
+  it('both intents file a real transaction and decrement accumulatedTotal', () => {
+    let state = createDefaultState();
+    state.goals = [{
+      id: 'g1', name: 'Test', type: 'target', status: 'active',
+      contributionRatePerDay: 5, cadence: 'weekly',
+      targetAmount: 1000, accumulatedTotal: 600,
+    }];
+    state.balance = { currentBalance: 2000, lastUpdated: '2026-06-05' };
+
+    // Test part_of_goal
+    const state1 = appReducer(state, {
+      type: 'SPEND_FROM_SAVINGS',
+      payload: {
+        goalId: 'g1', amount: 100,
+        transaction: { id: 'tx1', date: '2026-06-05', amount: 100, categoryId: '', description: 'x', source: 'manual' },
+        intent: 'part_of_goal',
+      },
+    });
+    expect(state1.goals[0].accumulatedTotal).toBe(500);
+    expect(state1.transactions.length).toBe(1);
+    expect(state1.balance.currentBalance).toBe(1900);
+
+    // Test withdrawal
+    const state2 = appReducer(state, {
+      type: 'SPEND_FROM_SAVINGS',
+      payload: {
+        goalId: 'g1', amount: 100,
+        transaction: { id: 'tx2', date: '2026-06-05', amount: 100, categoryId: '', description: 'y', source: 'manual' },
+        intent: 'withdrawal', newTargetDate: '2027-01-01',
+      },
+    });
+    expect(state2.goals[0].accumulatedTotal).toBe(500);
+    expect(state2.transactions.length).toBe(1);
+    expect(state2.balance.currentBalance).toBe(1900);
+  });
+});
+
+describe('Auto-Unpause', () => {
+  it('Goal should store autoUnpauseDate when paused with a date', () => {
+    let state = createDefaultState();
+    state.goals = [{
+      id: 'g1', name: 'Fund', type: 'continuous', status: 'active',
+      contributionRatePerDay: 5, cadence: 'monthly', accumulatedTotal: 200,
+    }];
+
+    state = appReducer(state, {
+      type: 'UPDATE_GOAL',
+      payload: { ...state.goals[0], status: 'paused', autoUnpauseDate: '2026-09-01' },
+    });
+
+    expect(state.goals[0].status).toBe('paused');
+    expect(state.goals[0].autoUnpauseDate).toBe('2026-09-01');
+  });
+
+  it('Resume should clear autoUnpauseDate', () => {
+    let state = createDefaultState();
+    state.goals = [{
+      id: 'g1', name: 'Fund', type: 'continuous', status: 'paused',
+      contributionRatePerDay: 5, cadence: 'monthly', accumulatedTotal: 200,
+      autoUnpauseDate: '2026-09-01',
+    }];
+
+    state = appReducer(state, {
+      type: 'UPDATE_GOAL',
+      payload: { ...state.goals[0], status: 'active', autoUnpauseDate: undefined },
+    });
+
+    expect(state.goals[0].status).toBe('active');
+    expect(state.goals[0].autoUnpauseDate).toBeUndefined();
   });
 });

@@ -5,7 +5,7 @@ import { useAppState, useAppDispatch } from '../../store/hooks';
 import { ExpenseForm } from './ExpenseForm';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { EmptyState } from '../shared/EmptyState';
-import { formatCurrency, formatFrequency, formatDayOfMonth } from '../../utils/format';
+import { formatCurrency, formatRecurrence, formatDayOfMonth, formatDayOfWeek } from '../../utils/format';
 
 export function ExpensesPanel() {
   const { expenses, categories } = useAppState();
@@ -35,9 +35,11 @@ export function ExpensesPanel() {
   const scheduleLabel = (exp: Expense) => {
     if (exp.type === 'one_time') return 'One-time';
     if (!exp.schedule) return '';
-    const freq = formatFrequency(exp.schedule.frequency);
-    if (exp.schedule.dayOfMonth !== null) return `${freq} on the ${formatDayOfMonth(exp.schedule.dayOfMonth)}`;
-    return freq;
+    const s = exp.schedule;
+    const base = formatRecurrence(s.interval, s.unit);
+    if (s.unit === 'week' && s.dayOfWeek !== null) return `${base} on ${formatDayOfWeek(s.dayOfWeek)}`;
+    if (s.dayOfMonth !== null) return `${base} on the ${formatDayOfMonth(s.dayOfMonth)}`;
+    return base;
   };
 
   // Group by category
@@ -118,13 +120,15 @@ export function ExpensesPanel() {
         </div>
       )}
 
-      <ExpenseForm
-        key={editing?.id ?? 'new'}
-        open={formOpen}
-        onClose={() => { setFormOpen(false); setEditing(undefined); }}
-        onSave={handleSave}
-        initial={editing}
-      />
+      {formOpen && (
+        <ExpenseForm
+          key={editing?.id ?? 'new'}
+          open
+          onClose={() => { setFormOpen(false); setEditing(undefined); }}
+          onSave={handleSave}
+          initial={editing}
+        />
+      )}
 
       <ConfirmDialog
         open={!!deleting}
@@ -161,9 +165,6 @@ function ExpenseRow({
           {expense.type === 'subscription' && (
             <span className="rounded bg-accent/20 px-1.5 py-0.5 text-xs text-accent">sub</span>
           )}
-          {expense.type === 'savings_goal' && (
-            <span className="rounded bg-success/20 px-1.5 py-0.5 text-xs text-success">goal</span>
-          )}
           {expense.isAutoCut && (
             <span className="rounded bg-danger/20 px-1.5 py-0.5 text-xs text-danger">cut</span>
           )}
@@ -173,11 +174,6 @@ function ExpenseRow({
         </div>
         <div className="mt-0.5 text-sm text-text-secondary">
           {formatCurrency(expense.amount)} &middot; {scheduleLabel}
-          {expense.type === 'savings_goal' && expense.targetAmount && (
-            <span className="text-text-muted">
-              {' '}&middot; {formatCurrency(expense.currentSaved ?? 0)} / {formatCurrency(expense.targetAmount)} saved
-            </span>
-          )}
         </div>
       </div>
       <div className="flex gap-2">

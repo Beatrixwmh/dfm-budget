@@ -17,18 +17,19 @@ import { todayString } from '../../utils/format';
 
 interface Props {
   events: CashEvent[];
+  dailySavingsRate?: number;
 }
 
-export function CashEventsChart({ events }: Props) {
+export function CashEventsChart({ events, dailySavingsRate = 0 }: Props) {
   const [timescale, setTimescale] = useState<Timescale>('30d');
   const today = todayString();
 
   const data = useMemo(
-    () => aggregateEvents(events, timescale, today),
-    [events, timescale, today]
+    () => aggregateEvents(events, timescale, today, dailySavingsRate),
+    [events, timescale, today, dailySavingsRate]
   );
 
-  const hasData = data.some(d => d.income > 0 || d.expenses < 0);
+  const hasData = data.some(d => d.income > 0 || d.expenses < 0 || d.savings < 0);
 
   return (
     <div>
@@ -60,13 +61,30 @@ export function CashEventsChart({ events }: Props) {
             />
             <Tooltip content={<CashFlowTooltip />} />
             <ReferenceLine y={0} stroke="#5b6178" strokeWidth={1} />
-            <Bar dataKey="income" fill="#34d399" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="expenses" fill="#f87171" radius={[0, 0, 2, 2]} />
+            <Bar dataKey="income" fill="#6dbf9c" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="expenses" fill="#d98f8f" radius={[0, 0, 2, 2]} />
+            {dailySavingsRate > 0 && (
+              <Bar dataKey="savings" fill="#6fb3ac" radius={[0, 0, 2, 2]} />
+            )}
           </ComposedChart>
         </ResponsiveContainer>
       ) : (
         <div className="flex h-[220px] items-center justify-center text-sm text-text-muted">
           No events in this period
+        </div>
+      )}
+
+      {dailySavingsRate > 0 && (
+        <div className="mt-2 flex items-center gap-4 text-xs text-text-muted">
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#6dbf9c]" /> Income
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#d98f8f]" /> Expenses
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#6fb3ac]" /> Savings Transfer
+          </span>
         </div>
       )}
     </div>
@@ -78,8 +96,10 @@ function CashFlowTooltip({ active, payload, label }: any) {
   const bucket = payload[0]?.payload;
   const income = bucket?.income ?? 0;
   const expenses = bucket?.expenses ?? 0;
+  const savings = bucket?.savings ?? 0;
   const incomeItems = bucket?.incomeItems ?? [];
   const expenseItems = bucket?.expenseItems ?? [];
+  const savingsItems = bucket?.savingsItems ?? [];
   return (
     <div className="rounded-lg border border-border bg-surface-overlay px-3 py-2 text-sm shadow-lg max-w-xs">
       <p className="mb-1 font-medium text-text-primary">{label}</p>
@@ -101,8 +121,17 @@ function CashFlowTooltip({ active, payload, label }: any) {
           ))}
         </div>
       )}
+      {savingsItems.length > 0 && (
+        <div className="mb-1">
+          {savingsItems.map((item: any, i: number) => (
+            <p key={i} className="text-[#6fb3ac]">
+              {item.name}: {formatCurrency(item.amount)}
+            </p>
+          ))}
+        </div>
+      )}
       <p className="mt-1 border-t border-border pt-1 text-text-secondary">
-        Net: {formatCurrency(income + expenses)}
+        Net: {formatCurrency(income + expenses + savings)}
       </p>
     </div>
   );

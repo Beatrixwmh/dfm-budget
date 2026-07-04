@@ -43,20 +43,22 @@ export function detectOverdueExpenses(
     );
     if (hasTransaction) continue;
 
-    // This expense is overdue — create a hold
-    const daysOverdue = Math.round(
-      (today.getTime() - lastDueDate.getTime()) / (86400 * 1000)
-    );
+    // Only flag if actually past due (due date is strictly before today, not today itself)
+    if (lastDueDateKey >= todayKey) continue;
 
-    // Only flag if actually past due (due date is before today, not today itself)
-    if (daysOverdue <= 0) continue;
+    // Compute days overdue using date keys (no timezone issues)
+    const [ty, tm, td] = todayKey.split('-').map(Number);
+    const [dy, dm, dd] = lastDueDateKey.split('-').map(Number);
+    const todayMs = new Date(ty, tm - 1, td).getTime();
+    const dueMs = new Date(dy, dm - 1, dd).getTime();
+    const daysLate = Math.floor((todayMs - dueMs) / (86400 * 1000));
 
     newHolds.push({
       expenseId: expense.id,
       expenseName: expense.name,
       amount: expense.amount,
       originalDueDate: lastDueDateKey,
-      deferCount: daysOverdue - 1, // start at days already passed minus 1
+      deferCount: Math.max(0, daysLate - 1),
       categoryId: expense.categoryId,
     });
   }

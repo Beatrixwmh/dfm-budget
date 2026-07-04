@@ -1,14 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
+import { useAppState, useAppDispatch } from '../../store/hooks';
+import { CategoryForm } from '../categories/CategoryForm';
+import type { Category } from '../../engine/types';
 
 interface Props {
   categories: { id: string; name: string; color: string }[];
   value: string;
   onChange: (id: string) => void;
   label?: string;
+  /** Show an "+ Add new category" item that opens the category editor. */
+  allowAdd?: boolean;
 }
 
-export function CategorySelect({ categories, value, onChange, label = 'Category' }: Props) {
+export function CategorySelect({ categories, value, onChange, label = 'Category', allowAdd = false }: Props) {
   const [open, setOpen] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const dispatch = useAppDispatch();
+  const allCategories = useAppState().categories;
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -20,6 +28,12 @@ export function CategorySelect({ categories, value, onChange, label = 'Category'
   }, []);
 
   const selected = categories.find(c => c.id === value);
+
+  const handleAddCategory = (category: Category) => {
+    dispatch({ type: 'ADD_CATEGORY', payload: { ...category, sortOrder: allCategories.length } });
+    onChange(category.id); // auto-select the newly created category
+    setShowAdd(false);
+  };
 
   return (
     <div ref={ref} className="relative">
@@ -42,7 +56,7 @@ export function CategorySelect({ categories, value, onChange, label = 'Category'
         </svg>
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-surface-overlay py-1 shadow-lg">
+        <div className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-border bg-surface-overlay py-1 shadow-lg">
           <button
             type="button"
             onClick={() => { onChange(''); setOpen(false); }}
@@ -61,7 +75,24 @@ export function CategorySelect({ categories, value, onChange, label = 'Category'
               {c.name}
             </button>
           ))}
+          {allowAdd && (
+            <button
+              type="button"
+              onClick={() => { setOpen(false); setShowAdd(true); }}
+              className="mt-1 flex w-full items-center gap-2 border-t border-border px-3 py-2 text-left text-sm font-medium text-accent hover:bg-surface-raised"
+            >
+              <span className="text-base leading-none">+</span> Add new category
+            </button>
+          )}
         </div>
+      )}
+
+      {allowAdd && showAdd && (
+        <CategoryForm
+          open
+          onClose={() => setShowAdd(false)}
+          onSave={handleAddCategory}
+        />
       )}
     </div>
   );

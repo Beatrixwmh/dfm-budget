@@ -1,6 +1,4 @@
-import type { Schedule, ScheduleFrequency } from '../../engine/types';
-import { parseDate } from '../../engine/holidays';
-import { FrequencySelect } from './FrequencySelect';
+import type { Schedule, ScheduleUnit } from '../../engine/types';
 import { DayOfWeekPicker } from './DayOfWeekPicker';
 import { DayOfMonthPicker } from './DayOfMonthPicker';
 import { WeekendRuleSelect } from './WeekendRuleSelect';
@@ -11,90 +9,69 @@ interface Props {
   onChange: (schedule: Schedule) => void;
 }
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
 export function ScheduleForm({ value, onChange }: Props) {
   const update = (partial: Partial<Schedule>) => onChange({ ...value, ...partial });
 
-  const handleFrequencyChange = (frequency: ScheduleFrequency) => {
-    const base: Partial<Schedule> = { frequency };
+  const handleInterval = (n: number) => {
+    // Editing always drops legacy twice-a-month behavior.
+    update({ interval: Math.max(1, Math.floor(n) || 1), semimonthlyDays: undefined });
+  };
 
-    if (frequency === 'weekly' || frequency === 'biweekly') {
+  const handleUnit = (unit: ScheduleUnit) => {
+    const base: Partial<Schedule> = { unit, semimonthlyDays: undefined };
+    if (unit === 'week') {
       base.dayOfWeek = value.dayOfWeek ?? 5;
       base.dayOfMonth = null;
-      base.semimonthlyDays = undefined;
-    } else if (frequency === 'semimonthly') {
-      base.dayOfWeek = null;
-      base.dayOfMonth = null;
-      base.semimonthlyDays = value.semimonthlyDays ?? [1, 15];
+      // A chosen weekday already fixes weekend-or-not, so reset the (hidden) weekend rule.
+      base.weekendRule = 'as_is';
     } else {
       base.dayOfWeek = null;
       base.dayOfMonth = value.dayOfMonth ?? 1;
-      base.semimonthlyDays = undefined;
     }
-
     onChange({ ...value, ...base });
   };
 
-  const showDayOfWeek = value.frequency === 'weekly' || value.frequency === 'biweekly';
-  const showDayOfMonth = value.frequency === 'monthly' || value.frequency === 'quarterly' || value.frequency === 'annual';
-  const showSemimonthly = value.frequency === 'semimonthly';
-  const showMonthPicker = value.frequency === 'annual';
+  const isWeek = value.unit === 'week';
+  const plural = value.interval === 1 ? '' : 's';
 
   return (
     <div className="flex flex-col gap-4">
-      <FrequencySelect value={value.frequency} onChange={handleFrequencyChange} />
+      {/* Every N <week | month | year> */}
+      <div>
+        <label className="mb-1.5 block text-sm text-text-secondary">Repeats</label>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-text-secondary">Every</span>
+          <input
+            type="number"
+            min={1}
+            value={value.interval}
+            onChange={e => handleInterval(Number(e.target.value))}
+            onFocus={e => e.currentTarget.select()}
+            className="w-16 rounded-lg border border-border bg-surface-overlay px-3 py-2.5 text-center text-sm text-text-primary"
+          />
+          <select
+            value={value.unit}
+            onChange={e => handleUnit(e.target.value as ScheduleUnit)}
+            className="flex-1 rounded-lg border border-border bg-surface-overlay px-3 py-2.5 text-sm text-text-primary"
+          >
+            <option value="week">week{plural}</option>
+            <option value="month">month{plural}</option>
+            <option value="year">year{plural}</option>
+          </select>
+        </div>
+      </div>
 
-      {showDayOfWeek && (
+      {/* Day-of-week for weeks; day-of-month for months & years */}
+      {isWeek ? (
         <DayOfWeekPicker
           value={value.dayOfWeek ?? 5}
           onChange={day => update({ dayOfWeek: day })}
         />
-      )}
-
-      {showDayOfMonth && (
+      ) : (
         <DayOfMonthPicker
           value={value.dayOfMonth ?? 1}
           onChange={day => update({ dayOfMonth: day })}
         />
-      )}
-
-      {showSemimonthly && (
-        <div className="flex flex-col gap-3">
-          <DayOfMonthPicker
-            label="First Day"
-            value={value.semimonthlyDays?.[0] ?? 1}
-            onChange={day => update({ semimonthlyDays: [day, value.semimonthlyDays?.[1] ?? 15] })}
-          />
-          <DayOfMonthPicker
-            label="Second Day"
-            value={value.semimonthlyDays?.[1] ?? 15}
-            onChange={day => update({ semimonthlyDays: [value.semimonthlyDays?.[0] ?? 1, day] })}
-          />
-        </div>
-      )}
-
-      {showMonthPicker && (
-        <div>
-          <label className="mb-1.5 block text-sm text-text-secondary">Month</label>
-          <select
-            value={parseDate(value.startDate).getMonth()}
-            onChange={e => {
-              const month = parseInt(e.target.value);
-              const d = parseDate(value.startDate);
-              d.setMonth(month);
-              update({ startDate: d.toISOString().slice(0, 10) });
-            }}
-            className="w-full rounded-lg border border-border bg-surface-overlay px-3 py-2.5 text-sm text-text-primary"
-          >
-            {MONTH_NAMES.map((name, i) => (
-              <option key={i} value={i}>{name}</option>
-            ))}
-          </select>
-        </div>
       )}
 
       <div className="grid grid-cols-2 gap-3">
@@ -108,17 +85,32 @@ export function ScheduleForm({ value, onChange }: Props) {
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm text-text-secondary">End Date (optional)</label>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label className="block text-sm text-text-secondary">End Date (optional)</label>
+            {value.endDate && (
+              <button
+                type="button"
+                onClick={() => update({ endDate: null })}
+                className="text-xs text-text-muted hover:text-accent"
+              >
+                Clear
+              </button>
+            )}
+          </div>
           <input
             type="date"
             value={value.endDate ?? ''}
+            min={value.startDate}
             onChange={e => update({ endDate: e.target.value || null })}
             className="w-full rounded-lg border border-border bg-surface-overlay px-3 py-2.5 text-sm text-text-primary"
           />
         </div>
       </div>
 
-      <WeekendRuleSelect value={value.weekendRule} onChange={r => update({ weekendRule: r })} />
+      {/* Weekend rule only matters for date-anchored (month/year) schedules */}
+      {!isWeek && (
+        <WeekendRuleSelect value={value.weekendRule} onChange={r => update({ weekendRule: r })} />
+      )}
       <HolidayRuleSelect value={value.holidayRule} onChange={r => update({ holidayRule: r })} />
     </div>
   );

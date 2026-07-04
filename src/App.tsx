@@ -4,8 +4,11 @@ import { OnboardingModal } from './components/onboarding/OnboardingModal';
 import { DashboardPage } from './pages/DashboardPage';
 import { PlanPage } from './pages/PlanPage';
 import { TransactionsPage } from './pages/TransactionsPage';
+import { SavingsPage } from './pages/SavingsPage';
 import { SimulatorPage } from './pages/SimulatorPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AutoUnpausePrompts } from './components/savings/AutoUnpausePrompts';
+import { NavContext } from './store/NavContext';
 import { useIsNewUser } from './store/hooks';
 import { useTransactionSideEffects } from './hooks/useTransactionSideEffects';
 
@@ -13,19 +16,29 @@ export default function App() {
   const isNewUser = useIsNewUser();
   const [showOnboarding, setShowOnboarding] = useState(isNewUser);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-  useTransactionSideEffects();
+  const { prompts, extendPause, resumeAtLowerRate, dismissPrompt, extendToDate } = useTransactionSideEffects();
 
   if (showOnboarding) {
     return <OnboardingModal onComplete={() => setShowOnboarding(false)} />;
   }
 
   return (
-    <Shell activeTab={activeTab} onTabChange={setActiveTab}>
-      {activeTab === 'dashboard' && <DashboardPage />}
-      {activeTab === 'plan' && <PlanPage />}
-      {activeTab === 'transactions' && <TransactionsPage />}
-      {activeTab === 'simulator' && <SimulatorPage />}
-      {activeTab === 'settings' && <SettingsPage />}
-    </Shell>
+    <NavContext value={setActiveTab}>
+      <Shell activeTab={activeTab} onTabChange={setActiveTab}>
+        {activeTab === 'dashboard' && <DashboardPage />}
+        {activeTab === 'plan' && <PlanPage />}
+        {activeTab === 'savings' && <SavingsPage />}
+        {activeTab === 'transactions' && <TransactionsPage />}
+        {activeTab === 'simulator' && <SimulatorPage />}
+        {activeTab === 'settings' && <SettingsPage />}
+        <AutoUnpausePrompts
+          prompts={prompts}
+          onExtendPause={extendPause}
+          onResumeAtLower={resumeAtLowerRate}
+          onDismiss={dismissPrompt}
+          onExtendToDate={extendToDate}
+        />
+      </Shell>
+    </NavContext>
   );
 }

@@ -12,9 +12,11 @@ export interface CashFlowBucket {
   label: string;
   income: number;
   expenses: number;
+  savings: number;
   net: number;
   incomeItems: CashFlowItem[];
   expenseItems: CashFlowItem[];
+  savingsItems: CashFlowItem[];
 }
 
 interface TimescaleConfig {
@@ -37,7 +39,8 @@ const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 export function aggregateEvents(
   events: CashEvent[],
   timescale: Timescale,
-  today: string
+  today: string,
+  dailySavingsRate: number = 0
 ): CashFlowBucket[] {
   const config = TIMESCALE_CONFIGS[timescale];
   const todayDate = parseDate(today);
@@ -48,15 +51,15 @@ export function aggregateEvents(
   const filtered = events.filter(e => e.date > today && e.date <= endKey);
 
   if (config.bucketBy === 'day') {
-    return bucketByDay(filtered, todayDate, config.days, timescale);
+    return bucketByDay(filtered, todayDate, config.days, timescale, dailySavingsRate);
   } else if (config.bucketBy === 'week') {
-    return bucketByWeek(filtered, todayDate, config.days);
+    return bucketByWeek(filtered, todayDate, config.days, dailySavingsRate);
   } else {
-    return bucketByMonth(filtered, todayDate, config.days, timescale);
+    return bucketByMonth(filtered, todayDate, config.days, timescale, dailySavingsRate);
   }
 }
 
-function bucketByDay(events: CashEvent[], start: Date, days: number, timescale: Timescale): CashFlowBucket[] {
+function bucketByDay(events: CashEvent[], start: Date, days: number, timescale: Timescale, savingsRate: number): CashFlowBucket[] {
   const buckets: CashFlowBucket[] = [];
   for (let i = 1; i <= days; i++) {
     const d = new Date(start);
@@ -79,12 +82,14 @@ function bucketByDay(events: CashEvent[], start: Date, days: number, timescale: 
         }
       }
     }
-    buckets.push({ label, income, expenses, net: income + expenses, incomeItems, expenseItems });
+    const savings = savingsRate > 0 ? -savingsRate : 0;
+    const savingsItems: CashFlowItem[] = savings < 0 ? [{ name: 'Savings', amount: savings }] : [];
+    buckets.push({ label, income, expenses, savings, net: income + expenses + savings, incomeItems, expenseItems, savingsItems });
   }
   return buckets;
 }
 
-function bucketByWeek(events: CashEvent[], start: Date, days: number): CashFlowBucket[] {
+function bucketByWeek(events: CashEvent[], start: Date, days: number, savingsRate: number): CashFlowBucket[] {
   const buckets: CashFlowBucket[] = [];
   const weeks = Math.ceil(days / 7);
   for (let w = 0; w < weeks; w++) {
@@ -109,12 +114,14 @@ function bucketByWeek(events: CashEvent[], start: Date, days: number): CashFlowB
         }
       }
     }
-    buckets.push({ label, income, expenses, net: income + expenses, incomeItems, expenseItems });
+    const savings = savingsRate > 0 ? -(savingsRate * 7) : 0;
+    const savingsItems: CashFlowItem[] = savings < 0 ? [{ name: 'Savings', amount: savings }] : [];
+    buckets.push({ label, income, expenses, savings, net: income + expenses + savings, incomeItems, expenseItems, savingsItems });
   }
   return buckets;
 }
 
-function bucketByMonth(events: CashEvent[], start: Date, days: number, timescale: Timescale): CashFlowBucket[] {
+function bucketByMonth(events: CashEvent[], start: Date, days: number, timescale: Timescale, savingsRate: number): CashFlowBucket[] {
   const buckets: CashFlowBucket[] = [];
   const end = new Date(start);
   end.setDate(end.getDate() + days);
@@ -124,6 +131,7 @@ function bucketByMonth(events: CashEvent[], start: Date, days: number, timescale
     const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
     const startKey = toKey(cursor);
     const endKey = toKey(monthEnd);
+    const daysInMonth = monthEnd.getDate();
     const label = timescale === '2yr'
       ? `${SHORT_MONTHS[cursor.getMonth()]} '${String(cursor.getFullYear()).slice(2)}`
       : SHORT_MONTHS[cursor.getMonth()];
@@ -141,7 +149,9 @@ function bucketByMonth(events: CashEvent[], start: Date, days: number, timescale
         }
       }
     }
-    buckets.push({ label, income, expenses, net: income + expenses, incomeItems, expenseItems });
+    const savings = savingsRate > 0 ? -(savingsRate * daysInMonth) : 0;
+    const savingsItems: CashFlowItem[] = savings < 0 ? [{ name: 'Savings', amount: savings }] : [];
+    buckets.push({ label, income, expenses, savings, net: income + expenses + savings, incomeItems, expenseItems, savingsItems });
     cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
   }
   return buckets;
