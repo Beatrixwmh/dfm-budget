@@ -73,8 +73,13 @@ export function calculateBarBreakdown(
   const obligations = [...expenseMap.values()];
   const grandTotal = obligations.reduce((s, o) => s + o.nextDue + o.futureTotal, 0);
 
-  // Available money for obligations = balance minus buffer, free money, overdue holds
-  const availableForObligations = Math.max(0, currentBalance - freeMoney - buffer - overdueHoldTotal);
+  // Available money for obligations = SPENDABLE balance (vault excluded) minus
+  // buffer, free money, and overdue holds. The vault gets its own segment below —
+  // counting it here would inflate obligations and drain the free segment.
+  const availableForObligations = Math.max(
+    0,
+    currentBalance - savingsTotal - freeMoney - buffer - overdueHoldTotal
+  );
 
   // Distribute available money proportionally across expenses
   const segments: BarSegment[] = [];
@@ -141,13 +146,13 @@ export function calculateBarBreakdown(
 
   segments.push({
     label: 'Free Money',
-    amount: Math.max(0, freeMoney - savingsTotal),
+    amount: freeMoney,
     color: '#6dbf9c',
     categoryId: null,
     type: 'free_money',
   });
 
-  return { segments, totalBalance: currentBalance };
+  return { segments, totalBalance: currentBalance, freeToSpend: freeMoney, nextIncomeDate };
 }
 
 function findNextIncomeDate(events: CashEvent[], today: string): string | null {

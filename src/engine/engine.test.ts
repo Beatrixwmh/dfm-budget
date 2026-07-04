@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateDfm } from './dfm';
+import { calculateDfm, maxSpendToday } from './dfm';
 import { generateCashEvents } from './eventGenerator';
 import { generateDates } from './scheduler';
 import { getObservedHolidays, toDateKey } from './holidays';
@@ -431,6 +431,73 @@ describe('Bar Chart Breakdown', () => {
 
     const holdSegment = breakdown.segments.find(s => s.type === 'overdue_hold');
     expect(holdSegment).toBeUndefined();
+  });
+
+  it('should not drain the free segment when a savings vault exists', () => {
+    const today = new Date(2026, 4, 25);
+    const todayKey = toDateKey(today);
+    const events = generateCashEvents(testIncome, testExpenses, today);
+    const vault = 1500;
+    const totalBalance = TEST_BALANCE + vault;
+    // DFM computed on the spendable pool, mirroring useDfmEngine
+    const dfm = calculateDfm(totalBalance - vault, TEST_BUFFER, events, today);
+    const breakdown = calculateBarBreakdown(
+      totalBalance,
+      dfm.dailyFreeMoney,
+      TEST_BUFFER,
+      events,
+      testCategories,
+      todayKey,
+      0,
+      [],
+      vault
+    );
+
+    const free = breakdown.segments.find(s => s.type === 'free_money')!;
+    const savings = breakdown.segments.find(s => s.type === 'savings')!;
+    expect(savings.amount).toBe(vault);
+    // Free money is the DFM-derived pool, NOT reduced by the vault
+    expect(free.amount).toBeCloseTo(breakdown.freeToSpend, 6);
+    expect(free.amount).toBeGreaterThan(0);
+    // Segments still account for the full balance
+    const sum = breakdown.segments.reduce((s, seg) => s + seg.amount, 0);
+    expect(sum).toBeCloseTo(totalBalance, 6);
+  });
+});
+
+describe('maxSpendToday (splurge ceiling)', () => {
+  const mkEvent = (date: string, amount: number) => ({
+    date, amount, sourceId: 'x', sourceName: 'x', categoryId: null,
+  });
+
+  it('equals balance minus buffer when all future events are positive', () => {
+    const today = new Date(2026, 6, 1);
+    const events = [mkEvent('2026-07-10', 500), mkEvent('2026-07-24', 500)];
+    expect(maxSpendToday(2000, 300, events, today)).toBe(1700);
+  });
+
+  it('is limited by the worst future dip, not today', () => {
+    const today = new Date(2026, 6, 1);
+    // Balance 2000, buffer 0: a -1800 bill on Jul 5 means only 200 is splurgeable
+    const events = [mkEvent('2026-07-05', -1800), mkEvent('2026-07-20', 3000)];
+    expect(maxSpendToday(2000, 0, events, today)).toBe(200);
+  });
+
+  it('clamps to zero when already at or below the buffer', () => {
+    const today = new Date(2026, 6, 1);
+    expect(maxSpendToday(250, 300, [], today)).toBe(0);
+    expect(maxSpendToday(500, 500, [mkEvent('2026-07-03', -100)], today)).toBe(0);
+  });
+
+  it('never exceeds what the buffer allows at any intermediate point', () => {
+    const today = new Date(2026, 6, 1);
+    const events = [
+      mkEvent('2026-07-03', -400),
+      mkEvent('2026-07-10', 1000),
+      mkEvent('2026-07-15', -900),
+    ];
+    // Trajectory without spending: 1000 -> 600 -> 1600 -> 700. Min = 600.
+    expect(maxSpendToday(1000, 100, events, today)).toBe(500);
   });
 });
 

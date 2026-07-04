@@ -9,6 +9,8 @@ As of commit `54122f0`, everything in the three specs is built **except**:
 
 This plan sequences those into five phases. The ordering exists because the simulator and deficit mode share a computational core, and building that core first (Phase 1) means neither feature duplicates engine logic.
 
+**UPDATE (Jul 2026) — the free-money reframe.** The original spec's framing of DFM-per-day as the headline number was a design error. The user-facing answer is a STOCK, not a rate: "how much of my balance is actually free right now." DFM (the rate) is backend machinery with three jobs: stabilizing free money over time (sustainable cap), aggressive-savings capacity (rawDfm), and the impulse-spend ceiling. This is now built: the dashboard hero shows **Free to spend** (conservative DFM × days to next income — refills each payday) with the **splurge ceiling** (`maxSpendToday` in `engine/dfm.ts`: min future balance − buffer, aggressive query) as a secondary line. All user-facing copy says "free money," never "DFM." Anything below that references "the headroom line" or DFM displays should be read through this lens — dollars available, rates as small print.
+
 **Execution order:** Phase 1 (engine extraction) → Phase 2 (simulator MVP) → Phase 3 (deficit mode) → Phase 4 (simulator × deficit integration) → Phase 5 (deploy + PWA).
 
 Phases 2 and 3 are independently shippable; 4 requires both; 5 can happen any time after 2 but makes most sense last so the deployed app is feature-complete.
@@ -45,7 +47,7 @@ export function computeSnapshot(state: AppState, today: Date, opts?: SnapshotOpt
 
 `useDfmEngine` becomes a thin `useMemo(() => computeSnapshot(state, new Date()), [state])`. All existing tests keep passing; add snapshot-level tests (the engine test file currently tests the sub-functions, not the composed pipeline).
 
-**Also in this phase:** a `maxAffordableToday(state)` helper — the largest one-time spend today that keeps the spendable balance ≥ buffer at every future t. This is `pinch balance − buffer` on the spendable trajectory (the aggressive query, no sustainable cap). It powers the simulator's headroom display and deficit lever 1.
+**Also in this phase:** ~~a `maxAffordableToday(state)` helper~~ **DONE early** — shipped as `maxSpendToday` in `engine/dfm.ts` during the free-money reframe; it already powers the dashboard splurge line and will power deficit lever 1.
 
 **Testing checklist:**
 - [ ] All 46 existing tests still pass; hook produces identical output to before (golden test on testData)
@@ -84,7 +86,7 @@ interface Hypothetical {
 
 ### UI (Simulator tab)
 
-1. **Headroom line** (always visible, even with no hypotheticals): "You could spend up to **$X today** without touching your buffer" — `maxAffordableToday`. This makes the tab useful on first open and is lever 1 of the A2 hierarchy.
+1. **Headroom line** — now lives on the dashboard hero (the splurge line), so the simulator instead opens with the current free-to-spend + splurge numbers as its baseline readout, then shows how each hypothetical moves them.
 2. **Add hypothetical** — amount, description, one-time (date picker) vs recurring (ScheduleForm), category. Footer-locked save button like every other form.
 3. **Hypothetical cards** — one per entry, amount/cadence/description, remove button. "Clear all" resets.
 4. **Impact panel** (live, recomputes on every add/remove):

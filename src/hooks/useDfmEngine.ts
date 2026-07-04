@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useAppState } from '../store/hooks';
 import { generateCashEvents } from '../engine/eventGenerator';
-import { calculateDfm } from '../engine/dfm';
+import { calculateDfm, maxSpendToday } from '../engine/dfm';
 import { calculateBarBreakdown } from '../engine/barChart';
 import { computeEffectiveBalance } from '../engine/effectiveBalance';
 import { todayString } from '../utils/format';
@@ -16,6 +16,8 @@ export interface DfmEngineOutput {
   overdueHoldTotal: number;
   /** True when goals want to contribute but there's no spendable room (underwater). */
   savingsFrozen: boolean;
+  /** Max one-time spend today that never breaches the buffer (aggressive / cushion money). */
+  maxSplurge: number;
 }
 
 export function useDfmEngine(): DfmEngineOutput | null {
@@ -145,6 +147,10 @@ export function useDfmEngine(): DfmEngineOutput | null {
     // Active goals want to contribute but there's no spendable room → frozen.
     const savingsFrozen = totalSavingsRate > 0 && cappedSavings <= 0;
 
-    return { dfm, events, barBreakdown, incomeEventDates, effectiveBalance, overdueHoldTotal, savingsFrozen };
+    // Cushion money: max one-time spend today keeping spendable >= buffer at every
+    // future t. Ignores savings contributions — a full splurge auto-freezes them.
+    const maxSplurge = maxSpendToday(spendableBalance, state.buffer, events, today);
+
+    return { dfm, events, barBreakdown, incomeEventDates, effectiveBalance, overdueHoldTotal, savingsFrozen, maxSplurge };
   }, [state]);
 }

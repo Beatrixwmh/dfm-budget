@@ -91,6 +91,36 @@ export function calculateDfm(
 }
 
 /**
+ * Max one-time spend TODAY that never breaches the buffer at any future point,
+ * assuming $0/day discretionary spending afterward. The aggressive query (no
+ * sustainable cap) — this is cushion money, spending it is safe for bills but
+ * slows free-money recovery. min over t>=0 of (balance + cumEvents(t)) - buffer.
+ */
+export function maxSpendToday(
+  currentBalance: number,
+  buffer: number,
+  events: CashEvent[],
+  today: Date,
+  windowDays: number = 730
+): number {
+  const eventsByDay = new Map<string, number>();
+  for (const e of events) {
+    eventsByDay.set(e.date, (eventsByDay.get(e.date) ?? 0) + e.amount);
+  }
+
+  let minBalance = currentBalance; // t = 0, before any future event
+  let cum = 0;
+  for (let t = 1; t <= windowDays; t++) {
+    const dayKey = toDateKey(addDays(today, t));
+    cum += eventsByDay.get(dayKey) ?? 0;
+    const bal = currentBalance + cum;
+    if (bal < minBalance) minBalance = bal;
+  }
+
+  return Math.max(0, minBalance - buffer);
+}
+
+/**
  * Find successive binding pinch segments in a single conceptual forward pass.
  * Each segment has a rate that exactly clears its pinch point.
  * The final segment uses the sustainable rate.

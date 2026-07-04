@@ -166,6 +166,9 @@ export interface BarSegment {
 export interface BarBreakdown {
   segments: BarSegment[];
   totalBalance: number;
+  /** Spendable-until-next-paycheck pool: conservative DFM × days to next income. */
+  freeToSpend: number;
+  nextIncomeDate: string | null;
 }
 
 export interface AppState {

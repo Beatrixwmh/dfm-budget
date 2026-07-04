@@ -133,7 +133,7 @@ export function ExpensesPanel() {
       <ConfirmDialog
         open={!!deleting}
         title="Delete Expense"
-        message={`Delete "${deleting?.name}"? This will affect your DFM calculation.`}
+        message={`Delete "${deleting?.name}"? This will change your free money.`}
         onConfirm={handleDelete}
         onCancel={() => setDeleting(null)}
       />

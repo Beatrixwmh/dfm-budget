@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useDfmEngine } from '../hooks/useDfmEngine';
 import { useAppState } from '../store/hooks';
-import { formatCurrency } from '../utils/format';
 import { ProjectedBalanceChart } from '../components/charts/ProjectedBalanceChart';
 import { BarBreakdownChart } from '../components/charts/BarBreakdownChart';
-import { CashEventsChart } from '../components/charts/CashEventsChart';
+import { FreeMoneyHero } from '../components/dashboard/FreeMoneyHero';
 import { UpcomingExpensesCard } from '../components/upcoming/UpcomingExpensesCard';
 import { QuickAddExpenseModal } from '../components/transactions/QuickAddExpenseModal';
 
@@ -17,48 +16,39 @@ export function DashboardPage() {
     return (
       <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
         <span className="mb-3 text-5xl">◎</span>
-        <h2 className="mb-2 text-2xl font-bold">Daily Free Money</h2>
+        <h2 className="mb-2 text-2xl font-bold">Free Money</h2>
         <p className="text-text-secondary">
-          Add your income and expenses in the Plan tab to see your daily budget.
+          Add your income and expenses in the Plan tab to see what's free to spend.
         </p>
       </div>
     );
   }
 
-  const { dfm, events, barBreakdown, incomeEventDates } = result;
-  const isNegative = dfm.dailyFreeMoney < 0;
+  const { dfm, barBreakdown, incomeEventDates, maxSplurge, effectiveBalance } = result;
+  const isDeficit = dfm.dailyFreeMoney < 0;
+  const vault = goals.reduce((s, g) => s + g.accumulatedTotal, 0);
+  const underwaterBy = Math.max(0, buffer - (effectiveBalance - vault));
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-6">
-      {/* Balance bar + DFM at top */}
+      {/* Hero: free-to-spend now, with the balance bar telling the rest of the story */}
       <div className="rounded-xl bg-surface-raised p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-medium text-text-secondary">Balance Breakdown</h3>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-xs text-text-muted">DFM</span>
-            <span className={`text-lg font-bold ${isNegative ? 'text-danger' : 'text-success'}`}>
-              {formatCurrency(dfm.dailyFreeMoney)}
-            </span>
-            <span className="text-xs text-text-muted">/day</span>
-          </div>
-        </div>
-        <BarBreakdownChart
-          segments={barBreakdown.segments}
+        <FreeMoneyHero
+          freeToSpend={barBreakdown.freeToSpend}
+          nextIncomeDate={barBreakdown.nextIncomeDate}
+          maxSplurge={maxSplurge}
+          dfmPerDay={dfm.dailyFreeMoney}
           totalBalance={barBreakdown.totalBalance}
+          pinchPointDate={dfm.pinchPointDate}
+          isDeficit={isDeficit}
+          underwaterBy={underwaterBy}
         />
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-surface-overlay p-2.5 text-center">
-            <p className="text-xs text-text-muted">Weekly</p>
-            <p className={`text-sm font-semibold ${isNegative ? 'text-danger' : 'text-text-primary'}`}>
-              {formatCurrency(dfm.dailyFreeMoney * 7)}
-            </p>
-          </div>
-          <div className="rounded-lg bg-surface-overlay p-2.5 text-center">
-            <p className="text-xs text-text-muted">Monthly</p>
-            <p className={`text-sm font-semibold ${isNegative ? 'text-danger' : 'text-text-primary'}`}>
-              {formatCurrency(dfm.dailyFreeMoney * 30)}
-            </p>
-          </div>
+        <div className="mt-4 border-t border-border pt-4">
+          <h3 className="mb-3 text-sm font-medium text-text-secondary">Where your money is</h3>
+          <BarBreakdownChart
+            segments={barBreakdown.segments}
+            totalBalance={barBreakdown.totalBalance}
+          />
         </div>
       </div>
 
@@ -84,15 +74,6 @@ export function DashboardPage() {
           incomeEventDates={incomeEventDates}
           segments={dfm.segments}
           goals={goals}
-        />
-      </div>
-
-      {/* Cash Flow */}
-      <div className="rounded-xl bg-surface-raised p-4">
-        <h3 className="mb-3 text-sm font-medium text-text-secondary">Cash Flow</h3>
-        <CashEventsChart
-          events={events}
-          dailySavingsRate={goals.filter(g => g.status === 'active').reduce((s, g) => s + g.contributionRatePerDay, 0)}
         />
       </div>
 

@@ -80,7 +80,7 @@ export function SettingsContent() {
       <section className="mb-8">
         <h3 className="mb-1 text-lg font-semibold">Safety Buffer</h3>
         <p className="mb-3 text-sm text-text-secondary">
-          Minimum balance you want to keep. DFM will never let you drop below this.
+          Minimum balance you want to keep. Free money is calculated so you never drop below this.
         </p>
         <CurrencyInput
           value={state.buffer}
