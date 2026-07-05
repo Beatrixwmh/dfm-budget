@@ -7,6 +7,7 @@ import { calculateBarBreakdown } from './barChart';
 import { computeEffectiveBalance } from './effectiveBalance';
 import { detectOverdueExpenses } from './overdueDetector';
 import { calculateFastestDate, validateContribution, fastestDateFromDays, findFirstSavableDate } from './savings';
+import { computeSnapshot } from './snapshot';
 import { appReducer } from '../store/reducer';
 import { createDefaultState } from '../store/defaults';
 import {
@@ -889,5 +890,95 @@ describe('Auto-Unpause', () => {
 
     expect(state.goals[0].status).toBe('active');
     expect(state.goals[0].autoUnpauseDate).toBeUndefined();
+  });
+});
+
+describe('computeSnapshot (pure engine pipeline)', () => {
+  const TODAY = new Date(2026, 4, 25);
+
+  function fixtureState() {
+    const state = createDefaultState();
+    state.balance = { currentBalance: TEST_BALANCE + 1000, lastUpdated: '2026-05-25' };
+    state.buffer = TEST_BUFFER;
+    state.categories = testCategories;
+    state.incomeSources = testIncome;
+    state.expenses = testExpenses;
+    state.goals = [{
+      id: 'g1', name: 'Fund', type: 'target', status: 'active',
+      contributionRatePerDay: 3, cadence: 'weekly', targetAmount: 5000,
+      accumulatedTotal: 1000,
+    } as Goal];
+    return state;
+  }
+
+  it('matches the hand-composed pipeline (golden)', () => {
+    const state = fixtureState();
+    const snap = computeSnapshot(state, TODAY)!;
+
+    // Recompute the core by hand: spendable = effective - vault
+    const events = generateCashEvents(testIncome, testExpenses, TODAY);
+    const rawDfm = calculateDfm(state.balance.currentBalance - 1000, TEST_BUFFER, events, TODAY);
+    const cappedSavings = Math.min(3, Math.max(0, rawDfm.rawDfm));
+
+    expect(snap.dfm.dailyFreeMoney).toBeCloseTo(
+      Math.max(Math.min(0, rawDfm.dailyFreeMoney), rawDfm.dailyFreeMoney - cappedSavings), 9);
+    expect(snap.events.length).toBe(events.length);
+    expect(snap.effectiveBalance).toBe(state.balance.currentBalance);
+    expect(snap.maxSplurge).toBe(
+      maxSpendToday(state.balance.currentBalance - 1000, TEST_BUFFER, events, TODAY));
+    // Projected balance line includes the vault and never dips below it
+    for (const p of snap.dfm.projectedBalances) {
+      expect(p.balance).toBeGreaterThanOrEqual((p.savings ?? 0) - 1e-6);
+    }
+  });
+
+  it('returns null with no income and no expenses', () => {
+    const state = createDefaultState();
+    expect(computeSnapshot(state, TODAY)).toBeNull();
+  });
+
+  it('extraEvents merge into the stream and lower the DFM', () => {
+    const state = fixtureState();
+    const base = computeSnapshot(state, TODAY)!;
+    const scenario = computeSnapshot(state, TODAY, {
+      extraEvents: [{
+        date: '2026-06-10', amount: -500, sourceId: 'hypo-1',
+        sourceName: 'Hypothetical', categoryId: null,
+      }],
+    })!;
+
+    expect(scenario.events.length).toBe(base.events.length + 1);
+    expect(scenario.dfm.dailyFreeMoney).toBeLessThan(base.dfm.dailyFreeMoney);
+    expect(scenario.maxSplurge).toBeLessThanOrEqual(base.maxSplurge);
+    // Stream stays date-sorted after the merge
+    for (let i = 1; i < scenario.events.length; i++) {
+      expect(scenario.events[i].date >= scenario.events[i - 1].date).toBe(true);
+    }
+  });
+
+  it('excludeExpenseIds removes that expense\'s entire event stream and raises DFM', () => {
+    const state = fixtureState();
+    const base = computeSnapshot(state, TODAY)!;
+    const target = testExpenses[0];
+    const without = computeSnapshot(state, TODAY, {
+      excludeExpenseIds: new Set([target.id]),
+    })!;
+
+    expect(without.events.some(e => e.sourceId === target.id)).toBe(false);
+    expect(base.events.some(e => e.sourceId === target.id)).toBe(true);
+    expect(without.dfm.dailyFreeMoney).toBeGreaterThan(base.dfm.dailyFreeMoney);
+  });
+
+  it('pauseAllSavings restores the un-throttled spending rate', () => {
+    const state = fixtureState();
+    const withSavings = computeSnapshot(state, TODAY)!;
+    const paused = computeSnapshot(state, TODAY, { pauseAllSavings: true })!;
+
+    // Pausing contributions gives spending back the capped amount
+    expect(paused.dfm.dailyFreeMoney).toBeGreaterThan(withSavings.dfm.dailyFreeMoney);
+    expect(paused.savingsFrozen).toBe(false);
+    // The vault itself (accumulated) stays walled off either way
+    const savingsSeg = paused.barBreakdown.segments.find(s => s.type === 'savings');
+    expect(savingsSeg?.amount).toBe(1000);
   });
 });
