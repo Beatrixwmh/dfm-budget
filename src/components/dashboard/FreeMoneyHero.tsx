@@ -10,6 +10,8 @@ interface Props {
   isDeficit: boolean;
   /** How far the spendable pool is below the buffer right now (0 if above). */
   underwaterBy: number;
+  /** Opens the deficit resolution flow. */
+  onFixDeficit?: () => void;
 }
 
 /**
@@ -26,6 +28,7 @@ export function FreeMoneyHero({
   pinchPointDate,
   isDeficit,
   underwaterBy,
+  onFixDeficit,
 }: Props) {
   const empty = freeToSpend < 1;
   const numberColor = isDeficit ? 'text-danger' : empty ? 'text-warning' : 'text-success';
@@ -39,13 +42,23 @@ export function FreeMoneyHero({
       </p>
 
       {isDeficit ? (
-        <p className="mt-2 text-xs text-danger">
-          {underwaterBy > 0
-            ? `You're ${formatCurrency(underwaterBy)} below your buffer right now.`
-            : `Overcommitted — even spending nothing, you'd breach your buffer${
-                pinchPointDate ? ` around ${formatDate(pinchPointDate)}` : ' soon'
-              }. Short about ${formatCurrency(Math.abs(dfmPerDay) * 30)}/month.`}
-        </p>
+        <div className="mt-2">
+          <p className="text-xs text-danger">
+            {underwaterBy > 0
+              ? `You're ${formatCurrency(underwaterBy)} below your buffer right now.`
+              : `Overcommitted — even spending nothing, you'd breach your buffer${
+                  pinchPointDate ? ` around ${formatDate(pinchPointDate)}` : ' soon'
+                }. Short about ${formatCurrency(Math.abs(dfmPerDay) * 30)}/month.`}
+          </p>
+          {onFixDeficit && (
+            <button
+              onClick={onFixDeficit}
+              className="mt-2 rounded-lg bg-danger/15 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/25"
+            >
+              Fix this →
+            </button>
+          )}
+        </div>
       ) : (
         <p className="mt-2 text-xs text-text-muted">
           {nextIncomeDate

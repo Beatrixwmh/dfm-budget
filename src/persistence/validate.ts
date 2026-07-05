@@ -99,5 +99,6 @@ export function validateAppState(data: unknown): AppState {
       : { lastProcessedDate: '' },
     nextSeq: typeof obj.nextSeq === 'number' ? obj.nextSeq : (Array.isArray(obj.transactions) ? obj.transactions.length + 1 : 1),
     goals: Array.isArray(obj.goals) ? obj.goals : [],
+    hasSeenDeficitWarning: obj.hasSeenDeficitWarning === true,
   };
 }

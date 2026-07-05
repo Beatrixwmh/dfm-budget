@@ -34,9 +34,10 @@ export function useTransactionSideEffects() {
       }
     }
 
-    // Detect genuinely overdue expenses
+    // Detect genuinely overdue expenses (cut expenses can't be overdue — they're
+    // not being paid, on purpose)
     const newHolds = detectOverdueExpenses(
-      state.expenses,
+      state.expenses.filter(e => !e.isAutoCut),
       state.transactions,
       state.overdueHolds,
       state.customHolidays,

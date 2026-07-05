@@ -183,4 +183,6 @@ export interface AppState {
   subscriptionLog: { lastProcessedDate: string };
   nextSeq: number;
   goals: Goal[];
+  /** One-time warning shown on the first deficit (tiers default to 2). */
+  hasSeenDeficitWarning?: boolean;
 }

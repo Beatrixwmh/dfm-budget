@@ -10,6 +10,8 @@ export interface SnapshotOptions {
   extraEvents?: CashEvent[];
   /** Expenses to treat as removed (deficit-mode cut previews). */
   excludeExpenseIds?: Set<string>;
+  /** Auto-cut expenses to treat as restored (deficit-mode restore previews). */
+  includeCutIds?: Set<string>;
   /** Compute as if all savings contributions were paused (deficit lever preview). */
   pauseAllSavings?: boolean;
 }
@@ -49,9 +51,13 @@ export function computeSnapshot(
     state.overdueHolds
   );
 
-  const expenses = opts.excludeExpenseIds
-    ? state.expenses.filter(e => !opts.excludeExpenseIds!.has(e.id))
-    : state.expenses;
+  // Deficit-cut expenses are excluded from the timeline (that's what "cut"
+  // means financially) unless a restore preview explicitly re-includes them.
+  const expenses = state.expenses.filter(e => {
+    if (opts.excludeExpenseIds?.has(e.id)) return false;
+    if (e.isAutoCut && !opts.includeCutIds?.has(e.id)) return false;
+    return true;
+  });
 
   const allEvents = generateCashEvents(
     state.incomeSources,

@@ -197,6 +197,29 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ),
       };
 
+    case 'SET_AUTO_CUT': {
+      const ids = new Set(action.payload.expenseIds);
+      return {
+        ...state,
+        expenses: state.expenses.map(e =>
+          ids.has(e.id) ? { ...e, isAutoCut: action.payload.isAutoCut } : e
+        ),
+      };
+    }
+
+    case 'PAUSE_ACTIVE_GOALS':
+      return {
+        ...state,
+        goals: state.goals.map(g =>
+          g.status === 'active'
+            ? { ...g, status: 'paused' as const, autoUnpauseDate: action.payload.autoUnpauseDate }
+            : g
+        ),
+      };
+
+    case 'MARK_DEFICIT_WARNING_SEEN':
+      return { ...state, hasSeenDeficitWarning: true };
+
     case 'IMPORT_STATE':
       return action.payload;
   }

@@ -12,12 +12,14 @@ import { NavContext } from './store/NavContext';
 import { SimulatorProvider } from './store/SimulatorContext';
 import { useIsNewUser } from './store/hooks';
 import { useTransactionSideEffects } from './hooks/useTransactionSideEffects';
+import { useDeficitRestore } from './hooks/useDeficitRestore';
 
 export default function App() {
   const isNewUser = useIsNewUser();
   const [showOnboarding, setShowOnboarding] = useState(isNewUser);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const { prompts, extendPause, resumeAtLowerRate, dismissPrompt, extendToDate } = useTransactionSideEffects();
+  useDeficitRestore();
 
   if (showOnboarding) {
     return <OnboardingModal onComplete={() => setShowOnboarding(false)} />;

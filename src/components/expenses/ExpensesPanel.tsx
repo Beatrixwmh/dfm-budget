@@ -94,6 +94,7 @@ export function ExpensesPanel() {
                       scheduleLabel={scheduleLabel(exp)}
                       onEdit={() => { setEditing(exp); setFormOpen(true); }}
                       onDelete={() => setDeleting(exp)}
+                      onRestore={() => dispatch({ type: 'SET_AUTO_CUT', payload: { expenseIds: [exp.id], isAutoCut: false } })}
                     />
                   ))}
                 </div>
@@ -112,6 +113,7 @@ export function ExpensesPanel() {
                     scheduleLabel={scheduleLabel(exp)}
                     onEdit={() => { setEditing(exp); setFormOpen(true); }}
                     onDelete={() => setDeleting(exp)}
+                      onRestore={() => dispatch({ type: 'SET_AUTO_CUT', payload: { expenseIds: [exp.id], isAutoCut: false } })}
                   />
                 ))}
               </div>
@@ -148,11 +150,13 @@ function ExpenseRow({
   scheduleLabel,
   onEdit,
   onDelete,
+  onRestore,
 }: {
   expense: Expense;
   scheduleLabel: string;
   onEdit: () => void;
   onDelete: () => void;
+  onRestore?: () => void;
 }) {
   return (
     <div className={`flex items-center justify-between rounded-xl bg-surface-raised p-4 ${expense.isAutoCut ? 'opacity-50' : ''}`}>
@@ -177,6 +181,9 @@ function ExpenseRow({
         </div>
       </div>
       <div className="flex gap-2">
+        {expense.isAutoCut && onRestore && (
+          <button onClick={onRestore} className="text-sm text-success hover:underline">Restore</button>
+        )}
         <button onClick={onEdit} className="text-sm text-text-muted hover:text-accent">Edit</button>
         <button onClick={onDelete} className="text-sm text-text-muted hover:text-danger">Delete</button>
       </div>

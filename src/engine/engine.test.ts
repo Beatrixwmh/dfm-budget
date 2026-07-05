@@ -8,6 +8,7 @@ import { computeEffectiveBalance } from './effectiveBalance';
 import { detectOverdueExpenses } from './overdueDetector';
 import { calculateFastestDate, validateContribution, fastestDateFromDays, findFirstSavableDate } from './savings';
 import { computeSnapshot } from './snapshot';
+import { planDeficit, simulateCuts, autoSelectCuts, findRestorable } from './deficit';
 import { hypotheticalEvents, hypotheticalToExpense } from './hypotheticals';
 import type { Hypothetical } from './hypotheticals';
 import { appReducer } from '../store/reducer';
@@ -892,6 +893,109 @@ describe('Auto-Unpause', () => {
 
     expect(state.goals[0].status).toBe('active');
     expect(state.goals[0].autoUnpauseDate).toBeUndefined();
+  });
+});
+
+describe('Deficit Mode', () => {
+  const TODAY = new Date(2026, 4, 25);
+  const monthly = (dayOfMonth: number): Schedule => ({
+    interval: 1, unit: 'month', dayOfMonth, dayOfWeek: null,
+    startDate: '2026-01-01', endDate: null, weekendRule: 'as_is', holidayRule: 'as_is',
+  });
+  const expense = (id: string, name: string, amount: number, tier: 0 | 1 | 2 | 3, isAutoCut = false): Expense => ({
+    id, name, amount, categoryId: '', type: 'recurring', isVariable: false,
+    schedule: monthly(15), tier, isAutoCut,
+  });
+
+  // Income $500/mo vs $570/mo of expenses → structural deficit (~-$2.3/day)
+  function deficitState(incomeAmount = 500) {
+    const state = createDefaultState();
+    state.balance = { currentBalance: 2000, lastUpdated: '2026-05-25' };
+    state.buffer = 0;
+    state.incomeSources = [{
+      id: 'inc', name: 'Job', amount: incomeAmount, isVariable: false, schedule: monthly(1),
+    }];
+    state.expenses = [
+      expense('rent', 'Rent', 300, 0),
+      expense('netflix', 'Netflix', 150, 3),
+      expense('gym', 'Gym', 120, 2),
+    ];
+    return state;
+  }
+
+  it('plans levers in A2 order: tier 3 → 2 → 1, tier 0 never listed', () => {
+    const plan = planDeficit(deficitState(), TODAY);
+    expect(plan.inDeficit).toBe(true);
+    expect(plan.deficitPerDay).toBeGreaterThan(0);
+    expect(plan.tiers.map(t => t.tier)).toEqual([3, 2]);
+    const allCandidates = plan.tiers.flatMap(t => t.candidates.map(c => c.expenseId));
+    expect(allCandidates).not.toContain('rent');
+    expect(allCandidates).toContain('netflix');
+    expect(plan.resolvable).toBe(true);
+  });
+
+  it('freedPerDay is positive and cutting the T3 expense resolves this deficit', () => {
+    const state = deficitState();
+    const plan = planDeficit(state, TODAY);
+    const netflix = plan.tiers[0].candidates.find(c => c.expenseId === 'netflix')!;
+    expect(netflix.freedPerDay).toBeGreaterThan(plan.deficitPerDay);
+    expect(simulateCuts(state, TODAY, new Set(['netflix']))).toBeGreaterThanOrEqual(0);
+  });
+
+  it('autoSelectCuts picks from tier 3 first and stops once resolved', () => {
+    const state = deficitState();
+    const chosen = autoSelectCuts(state, TODAY, planDeficit(state, TODAY));
+    expect(chosen.has('netflix')).toBe(true);
+    expect(chosen.has('gym')).toBe(false); // T3 alone was enough
+    expect(chosen.has('rent')).toBe(false);
+  });
+
+  it('flags unresolvable when tier 0 alone exceeds income', () => {
+    const state = deficitState();
+    state.expenses = [expense('rent', 'Rent', 600, 0), expense('netflix', 'Netflix', 150, 3)];
+    const plan = planDeficit(state, TODAY);
+    expect(plan.inDeficit).toBe(true);
+    expect(plan.resolvable).toBe(false);
+  });
+
+  it('cut expenses vanish from the event stream (isAutoCut respected by snapshot)', () => {
+    const state = deficitState();
+    state.expenses = state.expenses.map(e => e.id === 'netflix' ? { ...e, isAutoCut: true } : e);
+    const snap = computeSnapshot(state, TODAY)!;
+    expect(snap.events.some(e => e.sourceId === 'netflix')).toBe(false);
+    expect(snap.dfm.dailyFreeMoney).toBeGreaterThanOrEqual(0);
+  });
+
+  it('findRestorable restores when the budget improves, essentials first', () => {
+    // Both cut, income raised enough for ONE of them ($540 vs $300 rent + one of gym/netflix)
+    const state = deficitState(540);
+    state.expenses = [
+      expense('rent', 'Rent', 300, 0),
+      expense('netflix', 'Netflix', 150, 3, true),
+      expense('gym', 'Gym', 120, 2, true),
+    ];
+    const ids = findRestorable(state, TODAY);
+    // Tier 2 (gym) comes back before tier 3 (netflix); netflix doesn't fit
+    expect(ids).toContain('gym');
+    expect(ids).not.toContain('netflix');
+  });
+
+  it('findRestorable restores nothing while still under water', () => {
+    const state = deficitState(400); // even deeper deficit
+    state.expenses = state.expenses.map(e => e.id === 'netflix' ? { ...e, isAutoCut: true } : e);
+    // still negative with netflix cut (400 - 420 base)
+    expect(findRestorable(state, TODAY)).toEqual([]);
+  });
+
+  it('findRestorable restores everything when there is plenty of room', () => {
+    const state = deficitState(900);
+    state.expenses = [
+      expense('rent', 'Rent', 300, 0),
+      expense('netflix', 'Netflix', 150, 3, true),
+      expense('gym', 'Gym', 120, 2, true),
+    ];
+    const ids = findRestorable(state, TODAY);
+    expect(new Set(ids)).toEqual(new Set(['netflix', 'gym']));
   });
 });
 

@@ -6,11 +6,13 @@ import { BarBreakdownChart } from '../components/charts/BarBreakdownChart';
 import { FreeMoneyHero } from '../components/dashboard/FreeMoneyHero';
 import { UpcomingExpensesCard } from '../components/upcoming/UpcomingExpensesCard';
 import { QuickAddExpenseModal } from '../components/transactions/QuickAddExpenseModal';
+import { DeficitResolutionModal } from '../components/deficit/DeficitResolutionModal';
 
 export function DashboardPage() {
   const result = useDfmEngine();
   const { buffer, goals } = useAppState();
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showDeficitFix, setShowDeficitFix] = useState(false);
 
   if (!result) {
     return (
@@ -42,6 +44,7 @@ export function DashboardPage() {
           pinchPointDate={dfm.pinchPointDate}
           isDeficit={isDeficit}
           underwaterBy={underwaterBy}
+          onFixDeficit={() => setShowDeficitFix(true)}
         />
         <div className="mt-4 border-t border-border pt-4">
           <h3 className="mb-3 text-sm font-medium text-text-secondary">Where your money is</h3>
@@ -78,6 +81,9 @@ export function DashboardPage() {
       </div>
 
       <QuickAddExpenseModal open={showQuickAdd} onClose={() => setShowQuickAdd(false)} />
+      {showDeficitFix && (
+        <DeficitResolutionModal open onClose={() => setShowDeficitFix(false)} />
+      )}
     </div>
   );
 }

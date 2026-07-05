@@ -34,6 +34,7 @@ export function UpcomingExpensesCard() {
     for (const expense of state.expenses) {
       if (!expense.schedule) continue;
       if (expense.type === 'one_time') continue;
+      if (expense.isAutoCut) continue; // cut expenses aren't upcoming — they're suspended
       if (seenExpenses.has(expense.id)) continue;
 
       // Skip if there's already an overdue hold for this expense
