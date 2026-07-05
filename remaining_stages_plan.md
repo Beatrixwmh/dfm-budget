@@ -1,5 +1,10 @@
 # DFM Budget Calculator — Remaining Stages Plan
 
+> **STATUS (Jul 5, 2026): Phases 1–4 BUILT and verified** (engine extraction,
+> simulator, deficit mode, simulator×deficit preview). Phase 5: PWA manifest +
+> icons done, code pushed to GitHub — only the Vercel dashboard import remains
+> (needs Beatrix's login).
+
 ## Context
 
 As of commit `54122f0`, everything in the three specs is built **except**:
