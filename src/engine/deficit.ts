@@ -1,5 +1,12 @@
 import type { AppState, Expense } from './types';
-import { computeSnapshot } from './snapshot';
+import { computeSnapshot, type SnapshotOptions } from './snapshot';
+
+/** Merge a base scenario (e.g. simulator hypotheticals) with additional cut ids. */
+function withCuts(base: SnapshotOptions, cutIds: Set<string>): SnapshotOptions {
+  const merged = new Set(base.excludeExpenseIds ?? []);
+  for (const id of cutIds) merged.add(id);
+  return { ...base, excludeExpenseIds: merged };
+}
 
 export interface DeficitCandidate {
   expenseId: string;
@@ -33,8 +40,12 @@ export interface DeficitPlan {
  * Savings goals are transfers, not expenses — they never appear as cut
  * candidates; pausing is their lever.
  */
-export function planDeficit(state: AppState, today: Date): DeficitPlan {
-  const base = computeSnapshot(state, today);
+export function planDeficit(
+  state: AppState,
+  today: Date,
+  baseOpts: SnapshotOptions = {}
+): DeficitPlan {
+  const base = computeSnapshot(state, today, baseOpts);
   if (!base) {
     return {
       inDeficit: false, deficitPerDay: 0, neededPerMonth: 0, headroom: 0,
@@ -59,7 +70,7 @@ export function planDeficit(state: AppState, today: Date): DeficitPlan {
     if (inTier.length === 0) continue;
     const candidates = inTier
       .map(e => {
-        const without = computeSnapshot(state, today, { excludeExpenseIds: new Set([e.id]) });
+        const without = computeSnapshot(state, today, withCuts(baseOpts, new Set([e.id])));
         const freedPerDay = without
           ? without.dfm.dailyFreeMoney - base.dfm.dailyFreeMoney
           : 0;
@@ -77,7 +88,7 @@ export function planDeficit(state: AppState, today: Date): DeficitPlan {
 
   // Resolvable? Cut everything cuttable and check.
   const allCutIds = new Set(cuttable.map(e => e.id));
-  const everythingCut = computeSnapshot(state, today, { excludeExpenseIds: allCutIds });
+  const everythingCut = computeSnapshot(state, today, withCuts(baseOpts, allCutIds));
   const resolvable = !inDeficit || (everythingCut ? everythingCut.dfm.dailyFreeMoney >= 0 : false);
 
   return {
@@ -93,8 +104,13 @@ export function planDeficit(state: AppState, today: Date): DeficitPlan {
 }
 
 /** Projected daily allowance if the given expenses were cut. */
-export function simulateCuts(state: AppState, today: Date, cutIds: Set<string>): number {
-  const snap = computeSnapshot(state, today, { excludeExpenseIds: cutIds });
+export function simulateCuts(
+  state: AppState,
+  today: Date,
+  cutIds: Set<string>,
+  baseOpts: SnapshotOptions = {}
+): number {
+  const snap = computeSnapshot(state, today, withCuts(baseOpts, cutIds));
   return snap ? snap.dfm.dailyFreeMoney : 0;
 }
 
@@ -103,12 +119,17 @@ export function simulateCuts(state: AppState, today: Date, cutIds: Set<string>):
  * projected daily allowance clears zero. Returns the chosen expense ids
  * (possibly all of them if the deficit is unresolvable).
  */
-export function autoSelectCuts(state: AppState, today: Date, plan: DeficitPlan): Set<string> {
+export function autoSelectCuts(
+  state: AppState,
+  today: Date,
+  plan: DeficitPlan,
+  baseOpts: SnapshotOptions = {}
+): Set<string> {
   const chosen = new Set<string>();
   for (const { candidates } of plan.tiers) {
     for (const c of candidates) {
       chosen.add(c.expenseId);
-      if (simulateCuts(state, today, chosen) >= 0) return chosen;
+      if (simulateCuts(state, today, chosen, baseOpts) >= 0) return chosen;
     }
   }
   return chosen;

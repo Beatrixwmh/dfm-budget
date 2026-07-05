@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAppState, useAppDispatch } from '../../store/hooks';
+import { useNavigate } from '../../store/NavContext';
 import { useDfmEngine } from '../../hooks/useDfmEngine';
 import { planDeficit, simulateCuts, autoSelectCuts } from '../../engine/deficit';
 import { Modal } from '../shared/Modal';
@@ -13,6 +14,7 @@ interface Props {
 export function DeficitResolutionModal({ open, onClose }: Props) {
   const state = useAppState();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const baseline = useDfmEngine();
 
   const plan = useMemo(() => planDeficit(state, new Date()), [state]);
@@ -210,6 +212,13 @@ export function DeficitResolutionModal({ open, onClose }: Props) {
             Tier 0 expense.
           </p>
         )}
+
+        <button
+          onClick={() => { onClose(); navigate('simulator'); }}
+          className="text-left text-xs text-accent hover:underline"
+        >
+          Or test a different change in the Simulator →
+        </button>
       </div>
     </Modal>
   );

@@ -3,6 +3,7 @@ import { useAppState, useAppDispatch } from '../store/hooks';
 import { useDfmEngine } from '../hooks/useDfmEngine';
 import { useSimulator } from '../store/SimulatorContext';
 import { computeSnapshot } from '../engine/snapshot';
+import { planDeficit, autoSelectCuts } from '../engine/deficit';
 import { hypotheticalEvents, hypotheticalToExpense } from '../engine/hypotheticals';
 import { HypotheticalForm } from '../components/simulator/HypotheticalForm';
 import { ProjectedBalanceChart } from '../components/charts/ProjectedBalanceChart';
@@ -20,6 +21,24 @@ export function SimulatorPage() {
     const extraEvents = hypotheticalEvents(hypotheticals, new Date(), state.customHolidays);
     return computeSnapshot(state, new Date(), { extraEvents });
   }, [state, baseline, hypotheticals]);
+
+  // When the scenario goes negative, preview the exact levers the deficit flow
+  // would reach for — nothing here mutates anything.
+  const deficitPreview = useMemo(() => {
+    if (!scenario || scenario.dfm.dailyFreeMoney >= 0) return null;
+    const opts = {
+      extraEvents: hypotheticalEvents(hypotheticals, new Date(), state.customHolidays),
+    };
+    const plan = planDeficit(state, new Date(), opts);
+    const cutIds = autoSelectCuts(state, new Date(), plan, opts);
+    const cuts = [...cutIds]
+      .map(id => {
+        const e = state.expenses.find(x => x.id === id);
+        return e ? { name: e.name, tier: e.tier } : null;
+      })
+      .filter(Boolean) as { name: string; tier: number }[];
+    return { plan, cuts };
+  }, [scenario, state, hypotheticals]);
 
   if (!baseline) {
     return (
@@ -167,11 +186,31 @@ export function SimulatorPage() {
             </p>
           )}
 
-          {scenario.dfm.dailyFreeMoney < 0 && (
-            <p className="mt-3 rounded-lg bg-danger-dim px-3 py-2 text-xs text-danger">
-              This puts you in deficit — even spending nothing day-to-day, you'd breach your
-              buffer{scenario.dfm.pinchPointDate ? ` around ${formatDate(scenario.dfm.pinchPointDate)}` : ''}.
-            </p>
+          {scenario.dfm.dailyFreeMoney < 0 && deficitPreview && (
+            <div className="mt-3 rounded-lg bg-danger-dim px-3 py-2 text-xs">
+              <p className="text-danger">
+                This puts you in deficit — even spending nothing day-to-day, you'd breach your
+                buffer{scenario.dfm.pinchPointDate ? ` around ${formatDate(scenario.dfm.pinchPointDate)}` : ''}.
+              </p>
+              <div className="mt-1.5 text-text-secondary">
+                To stay solvent, you'd likely have to:
+                <ul className="mt-1 list-inside list-disc space-y-0.5">
+                  {deficitPreview.plan.pausableSavingsPerDay > 0 && (
+                    <li>
+                      pause savings contributions ({formatCurrency(deficitPreview.plan.pausableSavingsPerDay)}/day)
+                    </li>
+                  )}
+                  {deficitPreview.cuts.length > 0 && (
+                    <li>
+                      cut {deficitPreview.cuts.map(c => `${c.name} (T${c.tier})`).join(', ')}
+                    </li>
+                  )}
+                  {!deficitPreview.plan.resolvable && (
+                    <li>…and even that wouldn't fully cover it.</li>
+                  )}
+                </ul>
+              </div>
+            </div>
           )}
 
           {hypotheticals.length > 1 && (
