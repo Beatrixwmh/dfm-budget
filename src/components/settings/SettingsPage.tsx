@@ -138,6 +138,10 @@ export function SettingsContent() {
       {/* Backup */}
       <section className="mb-8">
         <h3 className="mb-3 text-lg font-semibold">Backup &amp; Restore</h3>
+        <p className="mb-3 text-sm text-text-secondary">
+          Your data lives on this device only — it doesn't sync between phone and computer.
+          Use Export on one device and Import on the other to move it.
+        </p>
         <div className="flex gap-3">
           <button
             onClick={handleExport}
