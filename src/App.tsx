@@ -9,6 +9,7 @@ import { SimulatorPage } from './pages/SimulatorPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AutoUnpausePrompts } from './components/savings/AutoUnpausePrompts';
 import { NavContext } from './store/NavContext';
+import { SimulatorProvider } from './store/SimulatorContext';
 import { useIsNewUser } from './store/hooks';
 import { useTransactionSideEffects } from './hooks/useTransactionSideEffects';
 
@@ -24,6 +25,7 @@ export default function App() {
 
   return (
     <NavContext value={setActiveTab}>
+      <SimulatorProvider>
       <Shell activeTab={activeTab} onTabChange={setActiveTab}>
         {activeTab === 'dashboard' && <DashboardPage />}
         {activeTab === 'plan' && <PlanPage />}
@@ -39,6 +41,7 @@ export default function App() {
           onExtendToDate={extendToDate}
         />
       </Shell>
+      </SimulatorProvider>
     </NavContext>
   );
 }

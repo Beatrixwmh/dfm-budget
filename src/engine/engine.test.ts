@@ -8,6 +8,8 @@ import { computeEffectiveBalance } from './effectiveBalance';
 import { detectOverdueExpenses } from './overdueDetector';
 import { calculateFastestDate, validateContribution, fastestDateFromDays, findFirstSavableDate } from './savings';
 import { computeSnapshot } from './snapshot';
+import { hypotheticalEvents, hypotheticalToExpense } from './hypotheticals';
+import type { Hypothetical } from './hypotheticals';
 import { appReducer } from '../store/reducer';
 import { createDefaultState } from '../store/defaults';
 import {
@@ -967,6 +969,75 @@ describe('computeSnapshot (pure engine pipeline)', () => {
     expect(without.events.some(e => e.sourceId === target.id)).toBe(false);
     expect(base.events.some(e => e.sourceId === target.id)).toBe(true);
     expect(without.dfm.dailyFreeMoney).toBeGreaterThan(base.dfm.dailyFreeMoney);
+  });
+
+  it('hypothetical one-time produces exactly one negative event on its date', () => {
+    const hypo: Hypothetical = {
+      id: 'h1', description: 'New couch', amount: 800, kind: 'one_time',
+      date: '2026-06-15', categoryId: '',
+    };
+    const events = hypotheticalEvents([hypo], TODAY);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ date: '2026-06-15', amount: -800, sourceId: 'h1' });
+  });
+
+  it('a buy-it-today hypothetical shifts to tomorrow so it registers in DFM', () => {
+    const hypo: Hypothetical = {
+      id: 'h-today', description: 'Impulse buy', amount: 300, kind: 'one_time',
+      date: toDateKey(TODAY), categoryId: '',
+    };
+    const events = hypotheticalEvents([hypo], TODAY);
+    expect(events).toHaveLength(1);
+    expect(events[0].date).toBe('2026-05-26'); // tomorrow
+    expect(events[0].amount).toBe(-300);
+
+    // And it actually moves the scenario numbers
+    const state = fixtureState();
+    const base = computeSnapshot(state, TODAY)!;
+    const scenario = computeSnapshot(state, TODAY, { extraEvents: events })!;
+    expect(scenario.maxSplurge).toBeLessThan(base.maxSplurge);
+  });
+
+  it('hypothetical recurring runs through the real scheduler (every 2 weeks)', () => {
+    const hypo: Hypothetical = {
+      id: 'h2', description: 'Climbing gym', amount: 60, kind: 'recurring',
+      date: '2026-05-25', categoryId: '',
+      schedule: {
+        interval: 2, unit: 'week', dayOfMonth: null, dayOfWeek: 1,
+        startDate: '2026-05-25', endDate: '2026-08-25',
+        weekendRule: 'as_is', holidayRule: 'as_is',
+      },
+    };
+    const events = hypotheticalEvents([hypo], TODAY);
+    expect(events.length).toBeGreaterThanOrEqual(6); // ~13 weeks / 2
+    expect(events.every(e => e.amount === -60)).toBe(true);
+    // First occurrence lands ON today (May 25 is a Monday) → shifted to tomorrow;
+    // steady-state occurrences are 14 days apart.
+    expect(events[0].date).toBe('2026-05-26');
+    const d1 = new Date(events[1].date).getTime();
+    const d2 = new Date(events[2].date).getTime();
+    expect((d2 - d1) / 86400000).toBe(14);
+  });
+
+  it('hypotheticalToExpense produces a valid applyable expense', () => {
+    const hypo: Hypothetical = {
+      id: 'h3', description: 'Coffee habit', amount: 25, kind: 'recurring',
+      date: '2026-05-25', categoryId: 'cat-1',
+      schedule: {
+        interval: 1, unit: 'week', dayOfMonth: null, dayOfWeek: 5,
+        startDate: '2026-05-25', endDate: null,
+        weekendRule: 'as_is', holidayRule: 'as_is',
+      },
+    };
+    const expense = hypotheticalToExpense(hypo);
+    expect(expense.type).toBe('recurring');
+    expect(expense.tier).toBe(2);
+    expect(expense.amount).toBe(25);
+    // One-time fork pins the schedule to the single date
+    const oneTime = hypotheticalToExpense({ ...hypo, kind: 'one_time', date: '2026-07-01', schedule: undefined });
+    expect(oneTime.type).toBe('one_time');
+    expect(oneTime.schedule?.startDate).toBe('2026-07-01');
+    expect(oneTime.schedule?.endDate).toBe('2026-07-01');
   });
 
   it('pauseAllSavings restores the un-throttled spending rate', () => {

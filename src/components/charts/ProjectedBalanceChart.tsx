@@ -20,6 +20,8 @@ interface Props {
   incomeEventDates: Set<string>;
   segments: DfmSegment[];
   goals?: Goal[];
+  /** Simulator scenario trajectory, rendered as a dashed overlay. */
+  scenarioBalances?: { date: string; balance: number }[];
 }
 
 export function ProjectedBalanceChart({
@@ -29,6 +31,7 @@ export function ProjectedBalanceChart({
   incomeEventDates,
   segments,
   goals = [],
+  scenarioBalances,
 }: Props) {
   const activeGoals = goals.filter(g => g.status === 'active' && g.contributionRatePerDay > 0);
   const totalSavingsRate = activeGoals.reduce((s, g) => s + g.contributionRatePerDay, 0);
@@ -89,8 +92,17 @@ export function ProjectedBalanceChart({
 
   const rawData = showDaily ? dailyData : paydayData;
 
-  // Savings vault is precomputed in the engine (consistent with balance).
-  const data = rawData;
+  // Merge the scenario trajectory into the sampled points by date — both come
+  // from the same 731-day window, so dates align exactly.
+  const scenarioMap = useMemo(() => {
+    if (!scenarioBalances) return null;
+    return new Map(scenarioBalances.map(b => [b.date, b.balance]));
+  }, [scenarioBalances]);
+
+  const data = useMemo(() => {
+    if (!scenarioMap) return rawData;
+    return rawData.map(p => ({ ...p, scenario: scenarioMap.get(p.date) }));
+  }, [rawData, scenarioMap]);
 
   return (
     <div>
@@ -162,6 +174,17 @@ export function ProjectedBalanceChart({
               activeDot={{ r: 4, fill: '#d4be7e' }}
             />
           )}
+          {scenarioMap && (
+            <Line
+              type="linear"
+              dataKey="scenario"
+              stroke="#a78bfa"
+              strokeWidth={2}
+              strokeDasharray="6 4"
+              dot={false}
+              activeDot={{ r: 4, fill: '#a78bfa' }}
+            />
+          )}
           {buffer > 0 && (
             <ReferenceLine
               y={buffer}
@@ -194,6 +217,17 @@ export function ProjectedBalanceChart({
           ))}
         </ComposedChart>
       </ResponsiveContainer>
+
+      {scenarioMap && (
+        <div className="mt-2 flex items-center gap-4 text-xs text-text-muted">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-0.5 w-4 rounded bg-[#6dbf9c]" /> Current plan
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-0 w-4 border-t-2 border-dashed border-[#a78bfa]" /> With hypotheticals
+          </span>
+        </div>
+      )}
 
       {/* Compact legend linking each marker line to its meaning */}
       {(dfmMarkers.length > 0 || (showSavings && goalCompletions.length > 0)) && (
@@ -245,6 +279,9 @@ function BalanceTooltip({ active, payload, segments, showSavings }: any) {
     <div className="rounded-lg border border-border bg-surface-overlay px-3 py-2 text-sm shadow-lg">
       <p className="mb-1 text-text-secondary">{formatted}</p>
       <p className="text-success">Balance: {formatCurrency(balance)}</p>
+      {point.scenario != null && (
+        <p className="text-[#a78bfa]">Scenario: {formatCurrency(point.scenario)}</p>
+      )}
       {showSavings && savings != null && (
         <p className="text-[#d4be7e]">Savings vault: {formatCurrency(savings)}</p>
       )}
