@@ -74,8 +74,8 @@ export function ScheduleForm({ value, onChange }: Props) {
         />
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
+      <div className="flex items-end gap-2">
+        <div className="min-w-0 flex-1">
           <label className="mb-1.5 block text-sm text-text-secondary">Start Date</label>
           <input
             type="date"
@@ -84,7 +84,8 @@ export function ScheduleForm({ value, onChange }: Props) {
             className="w-full rounded-lg border border-border bg-surface-overlay px-3 py-2.5 text-sm text-text-primary"
           />
         </div>
-        <div>
+        <span className="pb-3 text-sm text-text-muted" aria-hidden="true">→</span>
+        <div className="min-w-0 flex-1">
           <div className="mb-1.5 flex items-center justify-between">
             <label className="block text-sm text-text-secondary">End Date (optional)</label>
             {value.endDate && (

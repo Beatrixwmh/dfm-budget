@@ -76,6 +76,7 @@ export function BarBreakdownChart({ segments, totalBalance }: Props) {
 
 function FundingDetail({ segment }: { segment: BarSegment }) {
   const { funding } = segment;
+  const [showFutureHelp, setShowFutureHelp] = useState(false);
   if (!funding) return null;
 
   const nextPct = funding.nextDue > 0
@@ -137,7 +138,28 @@ function FundingDetail({ segment }: { segment: BarSegment }) {
         {/* Future occurrences */}
         {funding.futureTotal > 0 && (
           <div className="mt-3 border-t border-border pt-2.5">
-            <p className="text-xs text-text-muted">Future occurrences</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs text-text-muted">Future occurrences</p>
+              <button
+                type="button"
+                onClick={() => setShowFutureHelp(h => !h)}
+                aria-label="What does this mean?"
+                className={`flex h-4 w-4 items-center justify-center rounded-full border text-[10px] font-bold leading-none transition-colors ${
+                  showFutureHelp
+                    ? 'border-accent bg-accent/20 text-accent'
+                    : 'border-border text-text-muted hover:border-accent hover:text-accent'
+                }`}
+              >
+                ?
+              </button>
+            </div>
+            {showFutureHelp && (
+              <p className="mt-1.5 rounded-lg bg-surface-raised px-2.5 py-2 text-xs leading-relaxed text-text-secondary">
+                Every upcoming {segment.label} payment in the next 2 years, added together —
+                that's why it's big. "Reserved" is the slice of today's balance already set
+                aside toward those future bills so they never catch you off guard.
+              </p>
+            )}
             <div className="mt-1 flex gap-4 text-sm">
               <div>
                 <span className="text-text-muted">Reserved</span>

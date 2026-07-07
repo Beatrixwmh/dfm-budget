@@ -27,6 +27,31 @@ const CADENCE_MULTIPLIERS: Record<Cadence, number> = {
   monthly: 30.44,
 };
 
+const CADENCE_CYCLE_NOUN: Record<Cadence, string> = {
+  weekly: 'week',
+  biweekly: 'two-week cycle',
+  monthly: 'month',
+};
+
+/**
+ * Human-honest contribution label. When the goal completes within a single
+ * cadence cycle, "rate × cycle" would exceed the target (you'd never actually
+ * pay that much) — so say what really happens: one contribution of the target.
+ */
+function contributionLabel(
+  ratePerDay: number,
+  cadence: Cadence,
+  remaining: number,
+  daysToReach: number
+): string {
+  const perCycle = ratePerDay * CADENCE_MULTIPLIERS[cadence];
+  if (perCycle >= remaining - 0.005) {
+    const days = Math.max(1, Math.round(daysToReach));
+    return `one contribution of ${formatCurrency(remaining)} — you'd reach the goal in ${days} day${days === 1 ? '' : 's'}, within a single ${CADENCE_CYCLE_NOUN[cadence]}`;
+  }
+  return `${formatCurrency(perCycle)}/${cadence}`;
+}
+
 export function GoalForm({ open, onClose, onSave, initial }: Props) {
   const engine = useDfmEngine();
   const state = useAppState();
@@ -283,7 +308,12 @@ export function GoalForm({ open, onClose, onSave, initial }: Props) {
                   Fastest reachable: <strong>{formatDate(fastestDateStr)}</strong>
                 </p>
                 <p className="mt-0.5 text-xs text-text-muted">
-                  At max contribution: {formatCurrency(fastest.maxRatePerDay * CADENCE_MULTIPLIERS[cadence])}/{cadence}
+                  At max contribution: {contributionLabel(
+                    fastest.maxRatePerDay,
+                    cadence,
+                    targetAmount - (initial?.accumulatedTotal ?? 0),
+                    fastest.daysToReach
+                  )}
                 </p>
               </div>
             )}
@@ -315,9 +345,14 @@ export function GoalForm({ open, onClose, onSave, initial }: Props) {
                       min={fastestDateStr}
                       className="w-full rounded-lg border border-border bg-surface-overlay px-3 py-2.5 text-sm text-text-primary"
                     />
-                    {computedRate !== null && targetDate && (
+                    {computedRate !== null && computedRate > 0 && targetDate && (
                       <p className="mt-1 text-xs text-text-muted">
-                        Contribution: {formatCurrency(computedRate * CADENCE_MULTIPLIERS[cadence])}/{cadence}
+                        Contribution: {contributionLabel(
+                          computedRate,
+                          cadence,
+                          targetAmount - (initial?.accumulatedTotal ?? 0),
+                          (targetAmount - (initial?.accumulatedTotal ?? 0)) / computedRate
+                        )}
                       </p>
                     )}
                   </div>
