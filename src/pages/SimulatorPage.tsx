@@ -236,6 +236,7 @@ export function SimulatorPage() {
           incomeEventDates={baseline.incomeEventDates}
           segments={baseline.dfm.segments}
           goals={state.goals}
+          goalCompletions={baseline.goalCompletions}
           scenarioBalances={scenario?.dfm.projectedBalances}
         />
       </div>

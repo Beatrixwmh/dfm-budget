@@ -12,6 +12,7 @@ export function createDefaultState(): AppState {
     transactions: [],
     overdueHolds: [],
     subscriptionLog: { lastProcessedDate: '' },
+    savingsLog: { lastAccrualDate: '' },
     nextSeq: 1,
     goals: [],
   };

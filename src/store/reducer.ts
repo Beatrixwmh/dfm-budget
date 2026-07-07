@@ -197,6 +197,18 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ),
       };
 
+    case 'ACCRUE_SAVINGS': {
+      const byGoal = new Map(action.payload.deposits.map(d => [d.goalId, d.amount]));
+      return {
+        ...state,
+        goals: state.goals.map(g => {
+          const add = byGoal.get(g.id);
+          return add ? { ...g, accumulatedTotal: g.accumulatedTotal + add } : g;
+        }),
+        savingsLog: { lastAccrualDate: action.payload.date },
+      };
+    }
+
     case 'SET_AUTO_CUT': {
       const ids = new Set(action.payload.expenseIds);
       return {

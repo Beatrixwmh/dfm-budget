@@ -2,14 +2,12 @@ import { CategorySpendingChart } from './CategorySpendingChart';
 import { SpendingVsBudgetChart } from './SpendingVsBudgetChart';
 import { CashEventsChart } from '../charts/CashEventsChart';
 import { useDfmEngine } from '../../hooks/useDfmEngine';
-import { useAppState } from '../../store/hooks';
 
 export function TrendsView() {
   const result = useDfmEngine();
-  const { goals } = useAppState();
-  const dailySavingsRate = goals
-    .filter(g => g.status === 'active')
-    .reduce((s, g) => s + g.contributionRatePerDay, 0);
+  // The throttled rate the engine actually applies — not the sum of goal
+  // rates, which can exceed real capacity.
+  const dailySavingsRate = result?.appliedSavingsRate ?? 0;
 
   return (
     <div className="space-y-4">

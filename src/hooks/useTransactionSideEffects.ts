@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useAppState, useAppDispatch } from '../store/hooks';
 import { useSubscriptionAutoLog } from './useSubscriptionAutoLog';
 import { useAutoUnpause } from './useAutoUnpause';
+import { useSavingsAccrual } from './useSavingsAccrual';
 import { detectOverdueExpenses } from '../engine/overdueDetector';
 import { toDateKey } from '../engine/holidays';
 
@@ -14,6 +15,7 @@ import { toDateKey } from '../engine/holidays';
  */
 export function useTransactionSideEffects() {
   useSubscriptionAutoLog();
+  useSavingsAccrual();
   const autoUnpause = useAutoUnpause();
 
   const state = useAppState();

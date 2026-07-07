@@ -97,6 +97,9 @@ export function validateAppState(data: unknown): AppState {
     subscriptionLog: obj.subscriptionLog && typeof (obj.subscriptionLog as Record<string, unknown>).lastProcessedDate === 'string'
       ? obj.subscriptionLog as { lastProcessedDate: string }
       : { lastProcessedDate: '' },
+    savingsLog: obj.savingsLog && typeof (obj.savingsLog as Record<string, unknown>).lastAccrualDate === 'string'
+      ? obj.savingsLog as { lastAccrualDate: string }
+      : { lastAccrualDate: '' },
     nextSeq: typeof obj.nextSeq === 'number' ? obj.nextSeq : (Array.isArray(obj.transactions) ? obj.transactions.length + 1 : 1),
     goals: Array.isArray(obj.goals) ? obj.goals : [],
     hasSeenDeficitWarning: obj.hasSeenDeficitWarning === true,

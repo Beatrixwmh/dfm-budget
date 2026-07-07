@@ -77,6 +77,7 @@ export function DashboardPage() {
           incomeEventDates={incomeEventDates}
           segments={dfm.segments}
           goals={goals}
+          goalCompletions={result.goalCompletions}
         />
       </div>
 

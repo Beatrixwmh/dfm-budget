@@ -36,6 +36,7 @@ export type AppAction =
   | { type: 'UPDATE_GOAL'; payload: Goal }
   | { type: 'DELETE_GOAL'; payload: string }
   | { type: 'DEPOSIT_TO_GOAL'; payload: { goalId: string; amount: number } }
+  | { type: 'ACCRUE_SAVINGS'; payload: { date: string; deposits: { goalId: string; amount: number }[] } }
   | { type: 'SET_AUTO_CUT'; payload: { expenseIds: string[]; isAutoCut: boolean } }
   | { type: 'PAUSE_ACTIVE_GOALS'; payload: { autoUnpauseDate?: string } }
   | { type: 'MARK_DEFICIT_WARNING_SEEN' }

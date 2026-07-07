@@ -181,6 +181,8 @@ export interface AppState {
   transactions: Transaction[];
   overdueHolds: OverdueHold[];
   subscriptionLog: { lastProcessedDate: string };
+  /** Tracks the last day scheduled contributions were moved into the vault. */
+  savingsLog?: { lastAccrualDate: string };
   nextSeq: number;
   goals: Goal[];
   /** One-time warning shown on the first deficit (tiers default to 2). */

@@ -9,6 +9,7 @@ import { detectOverdueExpenses } from './overdueDetector';
 import { calculateFastestDate, validateContribution, fastestDateFromDays, findFirstSavableDate } from './savings';
 import { computeSnapshot } from './snapshot';
 import { planDeficit, simulateCuts, autoSelectCuts, findRestorable } from './deficit';
+import { computeSavingsAccrual } from './savingsAccrual';
 import { hypotheticalEvents, hypotheticalToExpense } from './hypotheticals';
 import type { Hypothetical } from './hypotheticals';
 import { appReducer } from '../store/reducer';
@@ -996,6 +997,107 @@ describe('Deficit Mode', () => {
     ];
     const ids = findRestorable(state, TODAY);
     expect(new Set(ids)).toEqual(new Set(['netflix', 'gym']));
+  });
+});
+
+describe('Savings: throttled completions + accrual', () => {
+  const TODAY = new Date(2026, 4, 25);
+  const monthly = (dayOfMonth: number): Schedule => ({
+    interval: 1, unit: 'month', dayOfMonth, dayOfWeek: null,
+    startDate: '2026-01-01', endDate: null, weekendRule: 'as_is', holidayRule: 'as_is',
+  });
+
+  // Income 500/mo, expense 300/mo, balance 2000 → rawDfm ≈ $9.3/day.
+  // Goal wants $20/day → throttled to ~46%.
+  function throttledState() {
+    const state = createDefaultState();
+    state.balance = { currentBalance: 2000, lastUpdated: '2026-05-25' };
+    state.buffer = 0;
+    state.incomeSources = [{
+      id: 'inc', name: 'Job', amount: 500, isVariable: false, schedule: monthly(1),
+    }];
+    state.expenses = [{
+      id: 'rent', name: 'Rent', amount: 300, categoryId: '', type: 'recurring',
+      isVariable: false, schedule: monthly(15), tier: 0, isAutoCut: false,
+    }];
+    state.goals = [{
+      id: 'g1', name: 'Trip', type: 'target', status: 'active',
+      contributionRatePerDay: 20, cadence: 'weekly', targetAmount: 700, accumulatedTotal: 0,
+    }];
+    return state;
+  }
+
+  it('appliedSavingsRate is the throttled rate, not the desired rate', () => {
+    const snap = computeSnapshot(throttledState(), TODAY)!;
+    expect(snap.appliedSavingsRate).toBeLessThan(20);
+    expect(snap.appliedSavingsRate).toBeCloseTo(snap.dfm.rawDfm, 6);
+  });
+
+  it('goal completion date comes from the throttled sim, later than the naive date', () => {
+    const snap = computeSnapshot(throttledState(), TODAY)!;
+    expect(snap.goalCompletions).toHaveLength(1);
+    const completion = snap.goalCompletions[0];
+    // Naive: 700/20 = 35 days → 2026-06-29. Throttled (~9.3/day): ~75 days.
+    expect(completion.date > '2026-06-29').toBe(true);
+    // The freed rate is the throttled flow, not the desired 20/day
+    expect(completion.ratePerDay).toBeLessThan(20);
+    // And the savings trajectory flatlines exactly at the target from that day on
+    const after = snap.dfm.projectedBalances.filter(p => p.date >= completion.date);
+    for (const p of after) {
+      expect(p.savings).toBeCloseTo(700, 6);
+    }
+  });
+
+  it('savings line matches the marker: no growth past completion', () => {
+    const snap = computeSnapshot(throttledState(), TODAY)!;
+    const last = snap.dfm.projectedBalances[snap.dfm.projectedBalances.length - 1];
+    expect(last.savings).toBeCloseTo(700, 6); // capped at target, not still growing
+  });
+
+  it('accrual initializes lastAccrualDate without back-accruing', () => {
+    const state = throttledState();
+    state.savingsLog = { lastAccrualDate: '' };
+    const result = computeSavingsAccrual(state, TODAY)!;
+    expect(result.date).toBe('2026-05-25');
+    expect(result.deposits).toEqual([]);
+  });
+
+  it('accrual deposits the throttled rate × elapsed days, clipped at target', () => {
+    const state = throttledState();
+    state.savingsLog = { lastAccrualDate: '2026-05-22' }; // 3 days ago
+    const snap = computeSnapshot(state, TODAY)!;
+    const result = computeSavingsAccrual(state, TODAY)!;
+    expect(result.deposits).toHaveLength(1);
+    expect(result.deposits[0].goalId).toBe('g1');
+    expect(result.deposits[0].amount).toBeCloseTo(snap.appliedSavingsRate * 3, 1);
+
+    // Clipping: goal almost full → deposit only the remainder
+    state.goals[0].accumulatedTotal = 699.5;
+    const clipped = computeSavingsAccrual(state, TODAY)!;
+    expect(clipped.deposits[0].amount).toBeCloseTo(0.5, 2);
+  });
+
+  it('accrual is a no-op the same day and deposits nothing while frozen', () => {
+    const state = throttledState();
+    state.savingsLog = { lastAccrualDate: '2026-05-25' };
+    expect(computeSavingsAccrual(state, TODAY)).toBeNull();
+
+    // Frozen: no spendable room at all (underwater) → days pass, nothing accrues
+    state.savingsLog = { lastAccrualDate: '2026-05-20' };
+    state.balance.currentBalance = -100;
+    const frozen = computeSavingsAccrual(state, TODAY)!;
+    expect(frozen.deposits).toEqual([]);
+    expect(frozen.date).toBe('2026-05-25'); // date still advances
+  });
+
+  it('ACCRUE_SAVINGS reducer adds deposits and stamps the date', () => {
+    let state = throttledState();
+    state = appReducer(state, {
+      type: 'ACCRUE_SAVINGS',
+      payload: { date: '2026-05-25', deposits: [{ goalId: 'g1', amount: 27.9 }] },
+    });
+    expect(state.goals[0].accumulatedTotal).toBeCloseTo(27.9, 6);
+    expect(state.savingsLog?.lastAccrualDate).toBe('2026-05-25');
   });
 });
 

@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { formatCurrency, formatMonthShort, formatDate } from '../../utils/format';
 import type { DfmSegment, Goal } from '../../engine/types';
+import type { GoalCompletion } from '../../engine/snapshot';
 
 interface Props {
   balances: { date: string; balance: number; rawBalance: number }[];
@@ -20,6 +21,8 @@ interface Props {
   incomeEventDates: Set<string>;
   segments: DfmSegment[];
   goals?: Goal[];
+  /** True (throttle-aware) completion dates from the engine's vault simulation. */
+  goalCompletions?: GoalCompletion[];
   /** Simulator scenario trajectory, rendered as a dashed overlay. */
   scenarioBalances?: { date: string; balance: number }[];
 }
@@ -31,6 +34,7 @@ export function ProjectedBalanceChart({
   incomeEventDates,
   segments,
   goals = [],
+  goalCompletions = [],
   scenarioBalances,
 }: Props) {
   const activeGoals = goals.filter(g => g.status === 'active' && g.contributionRatePerDay > 0);
@@ -51,25 +55,9 @@ export function ProjectedBalanceChart({
       .map(s => ({ date: s.pinchDate, rate: s.nextRate as number }));
   }, [segments]);
 
-  // Goal completion dates (where a target goal finishes and frees up its contribution)
-  const goalCompletions = useMemo(() => {
-    return activeGoals
-      .filter(g => g.type === 'target' && g.targetAmount != null)
-      .map(g => {
-        const remaining = (g.targetAmount ?? 0) - g.accumulatedTotal;
-        if (remaining <= 0 || g.contributionRatePerDay <= 0) return null;
-        const daysToComplete = Math.ceil(remaining / g.contributionRatePerDay);
-        const d = new Date();
-        d.setDate(d.getDate() + daysToComplete);
-        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        return { goal: g, dateKey, daysToComplete, rateFreed: g.contributionRatePerDay };
-      })
-      .filter(Boolean) as { goal: Goal; dateKey: string; daysToComplete: number; rateFreed: number }[];
-  }, [activeGoals]);
-
   // All marker dates must be present in the data so vertical ReferenceLines render in BOTH views.
   const markerDates = useMemo(
-    () => new Set<string>([...dfmMarkers.map(m => m.date), ...goalCompletions.map(c => c.dateKey)]),
+    () => new Set<string>([...dfmMarkers.map(m => m.date), ...goalCompletions.map(c => c.date)]),
     [dfmMarkers, goalCompletions]
   );
 
@@ -207,8 +195,8 @@ export function ProjectedBalanceChart({
           {/* Goal completion markers (tied to the savings line) */}
           {showSavings && goalCompletions.map(c => (
             <ReferenceLine
-              key={`goal-${c.goal.id}`}
-              x={c.dateKey}
+              key={`goal-${c.goalId}`}
+              x={c.date}
               stroke="#d4be7e"
               strokeDasharray="3 4"
               strokeWidth={1}
@@ -243,12 +231,12 @@ export function ProjectedBalanceChart({
             </div>
           ))}
           {showSavings && goalCompletions.map(c => (
-            <div key={`goal-cap-${c.goal.id}`} className="flex items-center gap-2 text-xs">
+            <div key={`goal-cap-${c.goalId}`} className="flex items-center gap-2 text-xs">
               <span className="inline-block h-3 w-0 border-l-2 border-dashed border-[#d4be7e]" />
               <span className="text-text-secondary">
-                <span className="font-medium text-[#d4be7e]">{c.goal.name}</span> funded — frees{' '}
-                <span className="font-medium text-success">{formatCurrency(c.rateFreed)}</span>/day
-                {' '}around {formatPinchDate(c.dateKey)}
+                <span className="font-medium text-[#d4be7e]">{c.name}</span> funded — frees{' '}
+                <span className="font-medium text-success">{formatCurrency(c.ratePerDay)}</span>/day
+                {' '}around {formatPinchDate(c.date)}
               </span>
             </div>
           ))}

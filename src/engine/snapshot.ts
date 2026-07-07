@@ -16,6 +16,15 @@ export interface SnapshotOptions {
   pauseAllSavings?: boolean;
 }
 
+export interface GoalCompletion {
+  goalId: string;
+  name: string;
+  /** The day the vault simulation actually reaches the target (throttle-aware). */
+  date: string;
+  /** The throttled daily flow that stops (returns to spending) on that day. */
+  ratePerDay: number;
+}
+
 export interface DfmSnapshot {
   dfm: DfmResult;
   events: CashEvent[];
@@ -27,6 +36,10 @@ export interface DfmSnapshot {
   savingsFrozen: boolean;
   /** Max one-time spend today that never breaches the buffer (aggressive / cushion money). */
   maxSplurge: number;
+  /** Savings flow actually applied per day = min(sum of goal rates, rawDfm capacity). */
+  appliedSavingsRate: number;
+  /** True completion dates from the vault simulation — NOT naive remaining/rate math. */
+  goalCompletions: GoalCompletion[];
 }
 
 /**
@@ -110,10 +123,14 @@ export function computeSnapshot(
   // Simulate each goal's vault day-by-day so a target goal lands EXACTLY on its
   // target (no off-by-one shortfall, no overshoot) and then stops contributing.
   const goalSim = activeGoals.map(g => ({
+    id: g.id,
+    name: g.name,
     rate: g.contributionRatePerDay,
     saved: g.accumulatedTotal,
     target: g.type === 'target' && g.targetAmount != null ? g.targetAmount : Infinity,
+    completedDate: null as string | null,
   }));
+  const throttleFactor = totalSavingsRate > 0 ? cappedSavings / totalSavingsRate : 0;
 
   // Build the TOTAL balance line = spendable(t) + vault(t), and the vault line.
   //   balance - vault = spendable (>= buffer) by construction, so they never cross.
@@ -133,6 +150,10 @@ export function computeSnapshot(
           const add = Math.min((gs.rate / desiredRate) * capped, gs.target - gs.saved);
           gs.saved += add;
           vault += add;
+          // Record the TRUE (throttle-aware) completion day.
+          if (gs.saved >= gs.target - 1e-9 && gs.completedDate === null) {
+            gs.completedDate = sp.date;
+          }
         }
       }
     }
@@ -181,5 +202,21 @@ export function computeSnapshot(
   // future t. Ignores savings contributions — a full splurge auto-freezes them.
   const maxSplurge = maxSpendToday(spendableBalance, state.buffer, events, today);
 
-  return { dfm, events, barBreakdown, incomeEventDates, effectiveBalance, overdueHoldTotal, savingsFrozen, maxSplurge };
+  // Goals that finish inside the window, per the throttled simulation above.
+  // (Goals already at target on day 0 don't get a marker — nothing changes.)
+  const goalCompletions: GoalCompletion[] = goalSim
+    .filter(gs => gs.completedDate !== null)
+    .map(gs => ({
+      goalId: gs.id,
+      name: gs.name,
+      date: gs.completedDate!,
+      ratePerDay: gs.rate * throttleFactor,
+    }));
+
+  return {
+    dfm, events, barBreakdown, incomeEventDates, effectiveBalance, overdueHoldTotal,
+    savingsFrozen, maxSplurge,
+    appliedSavingsRate: cappedSavings,
+    goalCompletions,
+  };
 }
