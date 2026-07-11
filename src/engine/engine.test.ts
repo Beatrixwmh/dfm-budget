@@ -1049,6 +1049,24 @@ describe('Savings: throttled completions + accrual', () => {
     expect(last.savings).toBeCloseTo(700, 6); // capped at target, not still growing
   });
 
+  it('balance bar shows a To Savings inflow segment sized by the vault sim', () => {
+    const snap = computeSnapshot(throttledState(), TODAY)!;
+    const inflow = snap.barBreakdown.segments.find(s => s.type === 'savings_inflow');
+    expect(inflow).toBeDefined();
+    // Next income is Jun 1 (7 days out) — inflow ≈ applied rate × 7
+    expect(inflow!.amount).toBeCloseTo(snap.appliedSavingsRate * 7, 1);
+    // Segments still account for the full balance
+    const sum = snap.barBreakdown.segments.reduce((s, seg) => s + seg.amount, 0);
+    expect(sum).toBeCloseTo(2000, 6);
+  });
+
+  it('no inflow segment when there are no active goals', () => {
+    const state = throttledState();
+    state.goals = [];
+    const snap = computeSnapshot(state, TODAY)!;
+    expect(snap.barBreakdown.segments.find(s => s.type === 'savings_inflow')).toBeUndefined();
+  });
+
   it('accrual initializes lastAccrualDate without back-accruing', () => {
     const state = throttledState();
     state.savingsLog = { lastAccrualDate: '' };

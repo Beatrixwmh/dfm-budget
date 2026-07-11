@@ -151,7 +151,7 @@ export interface BarSegment {
   amount: number;
   color: string;
   categoryId: string | null;
-  type: 'obligation' | 'buffer' | 'free_money' | 'overdue_hold' | 'savings';
+  type: 'obligation' | 'buffer' | 'free_money' | 'overdue_hold' | 'savings' | 'savings_inflow';
   funding?: {
     nextDue: number;
     nextDueDate: string;

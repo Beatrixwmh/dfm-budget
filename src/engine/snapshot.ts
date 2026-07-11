@@ -179,6 +179,15 @@ export function computeSnapshot(
     })),
   };
 
+  // Contributions that will move into the vault by the next paycheck — read
+  // straight off the simulated vault line so it's throttle- and target-aware.
+  // Mirrors the bar's own horizon: next income event, else 30 days.
+  const nextIncome = events.find(e => e.amount > 0 && e.date > todayKey)?.date ?? null;
+  const horizonEntry = nextIncome
+    ? totalBalances.find(b => b.date === nextIncome)
+    : totalBalances[Math.min(30, totalBalances.length - 1)];
+  const upcomingSavings = Math.max(0, (horizonEntry?.savings ?? savings0) - savings0);
+
   const barBreakdown = calculateBarBreakdown(
     effectiveBalance,
     dfm.dailyFreeMoney,
@@ -188,7 +197,8 @@ export function computeSnapshot(
     todayKey,
     overdueHoldTotal,
     state.transactions,
-    savings0
+    savings0,
+    upcomingSavings
   );
 
   const incomeEventDates = new Set(

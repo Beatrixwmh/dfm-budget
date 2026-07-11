@@ -18,7 +18,9 @@ export function calculateBarBreakdown(
   today: string,
   overdueHoldTotal: number = 0,
   transactions: Transaction[] = [],
-  savingsTotal: number = 0
+  savingsTotal: number = 0,
+  /** Contributions flowing to goals between now and next income (from the vault sim). */
+  upcomingSavings: number = 0
 ): BarBreakdown {
   const categoryMap = new Map(categories.map(c => [c.id, c]));
 
@@ -74,11 +76,12 @@ export function calculateBarBreakdown(
   const grandTotal = obligations.reduce((s, o) => s + o.nextDue + o.futureTotal, 0);
 
   // Available money for obligations = SPENDABLE balance (vault excluded) minus
-  // buffer, free money, and overdue holds. The vault gets its own segment below —
-  // counting it here would inflate obligations and drain the free segment.
+  // buffer, free money, overdue holds, AND the slice earmarked to move into the
+  // vault by next paycheck. Each of those gets its own segment below — counting
+  // any of them here would inflate obligations.
   const availableForObligations = Math.max(
     0,
-    currentBalance - savingsTotal - freeMoney - buffer - overdueHoldTotal
+    currentBalance - savingsTotal - upcomingSavings - freeMoney - buffer - overdueHoldTotal
   );
 
   // Distribute available money proportionally across expenses
@@ -141,6 +144,16 @@ export function calculateBarBreakdown(
       color: '#6fb3ac',
       categoryId: null,
       type: 'savings',
+    });
+  }
+
+  if (upcomingSavings > 0.005) {
+    segments.push({
+      label: 'To Savings',
+      amount: upcomingSavings,
+      color: '#8fd0c6',
+      categoryId: null,
+      type: 'savings_inflow',
     });
   }
 
