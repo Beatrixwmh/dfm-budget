@@ -49,7 +49,6 @@ function migrateExpense(e: unknown): Expense {
     amount: exp.amount as number,
     categoryId: (exp.categoryId as string) ?? '',
     type: type as Expense['type'],
-    isVariable: (exp.isVariable as boolean) ?? false,
     schedule: migrateSchedule(exp.schedule),
     tier: typeof exp.tier === 'number' ? (exp.tier as Expense['tier']) : 2,
     isAutoCut: (exp.isAutoCut as boolean) ?? false,
@@ -62,7 +61,6 @@ function migrateIncome(i: unknown): IncomeSource {
     id: inc.id as string,
     name: inc.name as string,
     amount: inc.amount as number,
-    isVariable: (inc.isVariable as boolean) ?? false,
     schedule: migrateSchedule(inc.schedule) as Schedule,
   };
 }

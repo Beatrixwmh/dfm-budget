@@ -11,7 +11,6 @@ interface DueExpense {
   date: string;
   categoryId: string;
   type: 'recurring' | 'subscription' | 'one_time';
-  isVariable: boolean;
 }
 
 interface Props {

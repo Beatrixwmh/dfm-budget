@@ -537,7 +537,6 @@ describe('Overdue Detector', () => {
         amount: 100,
         categoryId: 'cat-utilities',
         type: 'recurring',
-        isVariable: false,
         tier: 1,
         isAutoCut: false,
         schedule: {
@@ -567,7 +566,6 @@ describe('Overdue Detector', () => {
         amount: 100,
         categoryId: 'cat-utilities',
         type: 'recurring',
-        isVariable: false,
         tier: 1,
         isAutoCut: false,
         schedule: {
@@ -597,7 +595,6 @@ describe('Overdue Detector', () => {
         amount: 100,
         categoryId: 'cat-utilities',
         type: 'recurring',
-        isVariable: false,
         tier: 1,
         isAutoCut: false,
         schedule: {
@@ -627,7 +624,6 @@ describe('Overdue Detector', () => {
         amount: 15,
         categoryId: 'cat-subscriptions',
         type: 'subscription',
-        isVariable: false,
         tier: 3,
         isAutoCut: false,
         schedule: {
@@ -654,7 +650,6 @@ describe('Overdue Detector', () => {
         amount: 50,
         categoryId: '',
         type: 'recurring',
-        isVariable: false,
         tier: 2,
         isAutoCut: false,
         schedule: {
@@ -904,7 +899,7 @@ describe('Deficit Mode', () => {
     startDate: '2026-01-01', endDate: null, weekendRule: 'as_is', holidayRule: 'as_is',
   });
   const expense = (id: string, name: string, amount: number, tier: 0 | 1 | 2 | 3, isAutoCut = false): Expense => ({
-    id, name, amount, categoryId: '', type: 'recurring', isVariable: false,
+    id, name, amount, categoryId: '', type: 'recurring',
     schedule: monthly(15), tier, isAutoCut,
   });
 
@@ -914,7 +909,7 @@ describe('Deficit Mode', () => {
     state.balance = { currentBalance: 2000, lastUpdated: '2026-05-25' };
     state.buffer = 0;
     state.incomeSources = [{
-      id: 'inc', name: 'Job', amount: incomeAmount, isVariable: false, schedule: monthly(1),
+      id: 'inc', name: 'Job', amount: incomeAmount, schedule: monthly(1),
     }];
     state.expenses = [
       expense('rent', 'Rent', 300, 0),
@@ -1014,11 +1009,11 @@ describe('Savings: throttled completions + accrual', () => {
     state.balance = { currentBalance: 2000, lastUpdated: '2026-05-25' };
     state.buffer = 0;
     state.incomeSources = [{
-      id: 'inc', name: 'Job', amount: 500, isVariable: false, schedule: monthly(1),
+      id: 'inc', name: 'Job', amount: 500, schedule: monthly(1),
     }];
     state.expenses = [{
       id: 'rent', name: 'Rent', amount: 300, categoryId: '', type: 'recurring',
-      isVariable: false, schedule: monthly(15), tier: 0, isAutoCut: false,
+      schedule: monthly(15), tier: 0, isAutoCut: false,
     }];
     state.goals = [{
       id: 'g1', name: 'Trip', type: 'target', status: 'active',

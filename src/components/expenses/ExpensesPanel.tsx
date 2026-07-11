@@ -163,9 +163,6 @@ function ExpenseRow({
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{expense.name}</span>
-          {expense.isVariable && (
-            <span className="rounded bg-warning-dim px-1.5 py-0.5 text-xs text-warning">~est</span>
-          )}
           {expense.type === 'subscription' && (
             <span className="rounded bg-accent/20 px-1.5 py-0.5 text-xs text-accent">sub</span>
           )}

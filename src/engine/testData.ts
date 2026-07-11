@@ -18,7 +18,6 @@ export const testIncome: IncomeSource[] = [
     id: 'inc-paycheck',
     name: 'Paycheck',
     amount: 1268,
-    isVariable: false,
     schedule: {
       interval: 2, unit: 'week',
       dayOfMonth: null,
@@ -38,7 +37,6 @@ export const testExpenses: Expense[] = [
     amount: 792.5,
     categoryId: 'cat-housing',
     type: 'recurring',
-    isVariable: false,
     tier: 0,
     isAutoCut: false,
     schedule: {
@@ -57,7 +55,6 @@ export const testExpenses: Expense[] = [
     amount: 42.5,
     categoryId: 'cat-utilities',
     type: 'recurring',
-    isVariable: true,
     tier: 1,
     isAutoCut: false,
     schedule: {
@@ -76,7 +73,6 @@ export const testExpenses: Expense[] = [
     amount: 12.5,
     categoryId: 'cat-utilities',
     type: 'recurring',
-    isVariable: true,
     tier: 1,
     isAutoCut: false,
     schedule: {
@@ -95,7 +91,6 @@ export const testExpenses: Expense[] = [
     amount: 27.5,
     categoryId: 'cat-utilities',
     type: 'recurring',
-    isVariable: false,
     tier: 1,
     isAutoCut: false,
     schedule: {
@@ -114,7 +109,6 @@ export const testExpenses: Expense[] = [
     amount: 184.44,
     categoryId: 'cat-insurance',
     type: 'recurring',
-    isVariable: false,
     tier: 1,
     isAutoCut: false,
     schedule: {
@@ -133,7 +127,6 @@ export const testExpenses: Expense[] = [
     amount: 85,
     categoryId: 'cat-transport',
     type: 'recurring',
-    isVariable: false,
     tier: 2,
     isAutoCut: false,
     schedule: {
@@ -152,7 +145,6 @@ export const testExpenses: Expense[] = [
     amount: 50,
     categoryId: 'cat-transport',
     type: 'recurring',
-    isVariable: true,
     tier: 2,
     isAutoCut: false,
     schedule: {
@@ -171,7 +163,6 @@ export const testExpenses: Expense[] = [
     amount: 71.86,
     categoryId: 'cat-insurance',
     type: 'recurring',
-    isVariable: false,
     tier: 1,
     isAutoCut: false,
     schedule: {
@@ -190,7 +181,6 @@ export const testExpenses: Expense[] = [
     amount: 23,
     categoryId: 'cat-transport',
     type: 'recurring',
-    isVariable: false,
     tier: 2,
     isAutoCut: false,
     schedule: {
@@ -209,7 +199,6 @@ export const testExpenses: Expense[] = [
     amount: 150,
     categoryId: 'cat-transport',
     type: 'recurring',
-    isVariable: true,
     tier: 2,
     isAutoCut: false,
     schedule: {
@@ -228,7 +217,6 @@ export const testExpenses: Expense[] = [
     amount: 360,
     categoryId: 'cat-phone',
     type: 'recurring',
-    isVariable: false,
     tier: 1,
     isAutoCut: false,
     schedule: {
@@ -247,7 +235,6 @@ export const testExpenses: Expense[] = [
     amount: 100,
     categoryId: 'cat-savings',
     type: 'recurring',
-    isVariable: false,
     tier: 2,
     isAutoCut: false,
     schedule: {
@@ -266,7 +253,6 @@ export const testExpenses: Expense[] = [
     amount: 120,
     categoryId: 'cat-subscriptions',
     type: 'subscription',
-    isVariable: false,
     tier: 3,
     isAutoCut: false,
     schedule: {
@@ -285,7 +271,6 @@ export const testExpenses: Expense[] = [
     amount: 120,
     categoryId: 'cat-storage',
     type: 'recurring',
-    isVariable: false,
     tier: 2,
     isAutoCut: false,
     schedule: {
@@ -304,7 +289,6 @@ export const testExpenses: Expense[] = [
     amount: 396.88,
     categoryId: 'cat-loans',
     type: 'recurring',
-    isVariable: false,
     tier: 0,
     isAutoCut: false,
     schedule: {

@@ -27,7 +27,6 @@ const DEFAULT_SCHEDULE: Schedule = {
 export function IncomeForm({ open, onClose, onSave, initial }: Props) {
   const [name, setName] = useState(initial?.name ?? '');
   const [amount, setAmount] = useState(initial?.amount ?? 0);
-  const [isVariable, setIsVariable] = useState(initial?.isVariable ?? false);
   const [schedule, setSchedule] = useState<Schedule>(initial?.schedule ?? DEFAULT_SCHEDULE);
 
   const handleSave = () => {
@@ -36,7 +35,6 @@ export function IncomeForm({ open, onClose, onSave, initial }: Props) {
       id: initial?.id ?? generateId(),
       name: name.trim(),
       amount,
-      isVariable,
       schedule,
     });
     onClose();
@@ -81,16 +79,6 @@ export function IncomeForm({ open, onClose, onSave, initial }: Props) {
         </div>
 
         <CurrencyInput value={amount} onChange={setAmount} label="Amount (per occurrence)" />
-
-        <label className="flex items-center gap-2 text-sm text-text-secondary">
-          <input
-            type="checkbox"
-            checked={isVariable}
-            onChange={e => setIsVariable(e.target.checked)}
-            className="h-4 w-4 rounded accent-accent"
-          />
-          Amount varies (this is an estimate)
-        </label>
 
         <div className="border-t border-border pt-4">
           <h4 className="mb-3 text-sm font-medium text-text-secondary">Schedule</h4>

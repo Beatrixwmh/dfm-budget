@@ -67,9 +67,6 @@ export function IncomePanel() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{inc.name}</span>
-                  {inc.isVariable && (
-                    <span className="rounded bg-warning-dim px-1.5 py-0.5 text-xs text-warning">~est</span>
-                  )}
                 </div>
                 <div className="mt-0.5 text-sm text-text-secondary">
                   {formatCurrency(inc.amount)} &middot; {scheduleLabel(inc)}

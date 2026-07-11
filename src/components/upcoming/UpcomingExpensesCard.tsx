@@ -62,7 +62,6 @@ export function UpcomingExpensesCard() {
           date: dateKey,
           categoryId: expense.categoryId,
           type: expense.type,
-          isVariable: expense.isVariable,
         };
 
         if (dateKey === todayKey) {

@@ -61,7 +61,6 @@ export function ExpenseForm({ open, onClose, onSave, initial }: Props) {
   const [amount, setAmount] = useState(initial?.amount ?? 0);
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? '');
   const [type, setType] = useState<ExpenseType>(initial?.type ?? 'recurring');
-  const [isVariable, setIsVariable] = useState(initial?.isVariable ?? false);
   const [schedule, setSchedule] = useState<Schedule>(initial?.schedule ?? DEFAULT_SCHEDULE);
   const [tier, setTier] = useState<ExpenseTier>(initial?.tier ?? 2);
 
@@ -79,7 +78,6 @@ export function ExpenseForm({ open, onClose, onSave, initial }: Props) {
       amount,
       categoryId,
       type,
-      isVariable,
       schedule: type === 'one_time' ? { ...schedule, endDate: schedule.startDate } : schedule,
       tier,
       isAutoCut: initial?.isAutoCut ?? false,
@@ -163,16 +161,6 @@ export function ExpenseForm({ open, onClose, onSave, initial }: Props) {
             {tier === 3 && 'First to be cut in deficit mode'}
           </p>
         </div>
-
-        <label className="flex items-center gap-2 text-sm text-text-secondary">
-          <input
-            type="checkbox"
-            checked={isVariable}
-            onChange={e => setIsVariable(e.target.checked)}
-            className="h-4 w-4 rounded accent-accent"
-          />
-          Amount varies (this is an estimate)
-        </label>
 
         <div className="border-t border-border pt-4">
           <h4 className="mb-3 text-sm font-medium text-text-secondary">

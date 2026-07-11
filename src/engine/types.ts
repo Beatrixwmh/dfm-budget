@@ -51,7 +51,6 @@ export interface IncomeSource {
   id: string;
   name: string;
   amount: number;
-  isVariable: boolean;
   schedule: Schedule;
 }
 
@@ -72,7 +71,6 @@ export interface Expense {
   amount: number;
   categoryId: string;
   type: ExpenseType;
-  isVariable: boolean;
   schedule: Schedule | null;
   tier: ExpenseTier;
   isAutoCut: boolean;

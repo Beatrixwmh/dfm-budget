@@ -49,7 +49,6 @@ export function hypotheticalToExpense(h: Hypothetical, todayKey?: string): Expen
     amount: h.amount,
     categoryId: h.categoryId,
     type: h.kind === 'one_time' ? 'one_time' : 'recurring',
-    isVariable: false,
     schedule,
     tier: 2,
     isAutoCut: false,
