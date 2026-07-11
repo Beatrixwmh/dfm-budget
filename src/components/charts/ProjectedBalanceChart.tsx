@@ -97,7 +97,7 @@ export function ProjectedBalanceChart({
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <p className="text-xs text-text-muted">
-            Assumes spending {formatCurrency(dfmPerDay)}/day
+            Next 2 years · assumes spending {formatCurrency(dfmPerDay)}/day
           </p>
           {totalSavingsRate > 0 && (
             <button
