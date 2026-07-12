@@ -27,7 +27,7 @@ export function AutoUnpausePrompts({ prompts, onExtendPause, onResumeAtLower, on
         <div className="flex flex-col gap-4">
           <p className="text-sm text-text-secondary">
             Your goal "{goal.name}" was set to resume {formatDate(goal.autoUnpauseDate!)},
-            but doing so will breach your buffer on {formatDate(prompt.breachDate!)}.
+            but resuming at the full rate would put you below your safety buffer.
           </p>
           <div className="flex flex-col gap-2">
             <button

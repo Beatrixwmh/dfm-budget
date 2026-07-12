@@ -170,11 +170,6 @@ export function GoalForm({ open, onClose, onSave, initial }: Props) {
     onClose();
   };
 
-  const displayRate = goalType === 'target'
-    ? (useFastest ? fastest?.maxRatePerDay : computedRate) ?? 0
-    : contributionPerCadence / CADENCE_MULTIPLIERS[cadence];
-  const displayPerCadence = displayRate * CADENCE_MULTIPLIERS[cadence];
-
   return (
     <Modal
       open={open}
@@ -199,7 +194,7 @@ export function GoalForm({ open, onClose, onSave, initial }: Props) {
             disabled={
               !name.trim() || !canSave ||
               (goalType === 'target' && (targetAmount <= 0 || !fastest)) ||
-              (goalType === 'continuous' && (contributionPerCadence <= 0 || (validation && !validation.feasible)))
+              (goalType === 'continuous' && (contributionPerCadence <= 0 || !!(validation && !validation.feasible)))
             }
             className="w-full rounded-lg bg-accent py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-40"
           >

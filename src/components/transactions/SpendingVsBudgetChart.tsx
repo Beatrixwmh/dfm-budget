@@ -14,7 +14,7 @@ import { TimescaleSelector } from '../charts/TimescaleSelector';
 import { CategorySelect } from '../shared/CategorySelect';
 import { formatCurrency } from '../../utils/format';
 import type { Timescale } from '../charts/chartHelpers';
-import type { Transaction, Expense, Category, Schedule } from '../../engine/types';
+import type { Category, Schedule } from '../../engine/types';
 
 const TIMESCALE_DAYS: Record<Timescale, number> = {
   '7d': 7, '30d': 30, '90d': 90, '6mo': 182, '1yr': 365, '2yr': 730,
@@ -130,7 +130,7 @@ export function SpendingVsBudgetChart() {
                 contentStyle={{ backgroundColor: '#1e2233', border: '1px solid #2e3345', borderRadius: 8 }}
                 labelStyle={{ color: '#8b90a5' }}
                 cursor={{ fill: 'rgba(255, 255, 255, 0.06)' }}
-                formatter={(value: number, name: string) => [formatCurrency(value), name === 'budgeted' ? 'Budgeted' : 'Actual']}
+                formatter={(value, name) => [formatCurrency(Number(value ?? 0)), name === 'budgeted' ? 'Budgeted' : 'Actual']}
               />
               <Bar dataKey="budgeted" fill="#7d9fd4" radius={[0, 4, 4, 0]} barSize={14} name="budgeted" />
               <Bar dataKey="actual" radius={[0, 4, 4, 0]} barSize={14} name="actual">

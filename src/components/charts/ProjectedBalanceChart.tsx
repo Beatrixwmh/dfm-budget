@@ -10,7 +10,7 @@ import {
   Tooltip,
   ReferenceLine,
 } from 'recharts';
-import { formatCurrency, formatMonthShort, formatDate } from '../../utils/format';
+import { formatCurrency, formatMonthShort } from '../../utils/format';
 import type { DfmSegment, Goal } from '../../engine/types';
 import type { GoalCompletion } from '../../engine/snapshot';
 
@@ -142,7 +142,7 @@ export function ProjectedBalanceChart({
             tickLine={false}
             axisLine={false}
           />
-          <Tooltip content={<BalanceTooltip segments={segments} showSavings={showSavings} />} />
+          <Tooltip content={<BalanceTooltip showSavings={showSavings} />} />
           <Area
             type="linear"
             dataKey="balance"
@@ -253,7 +253,7 @@ function formatPinchDate(dateStr: string): string {
   });
 }
 
-function BalanceTooltip({ active, payload, segments, showSavings }: any) {
+function BalanceTooltip({ active, payload, showSavings }: any) {
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
   const { date, balance, rawBalance, savings } = point;

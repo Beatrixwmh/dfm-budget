@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { Expense } from '../../engine/types';
-import { TIER_LABELS } from '../../engine/types';
 import { useAppState, useAppDispatch } from '../../store/hooks';
 import { ExpenseForm } from './ExpenseForm';
 import { ConfirmDialog } from '../shared/ConfirmDialog';

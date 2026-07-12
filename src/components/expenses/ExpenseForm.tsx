@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import type { Expense, ExpenseType, ExpenseTier, Schedule } from '../../engine/types';
-import { TIER_LABELS } from '../../engine/types';
 import { useAppState } from '../../store/hooks';
 import { Modal } from '../shared/Modal';
 import { CurrencyInput } from '../shared/CurrencyInput';

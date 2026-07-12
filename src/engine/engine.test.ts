@@ -6,7 +6,7 @@ import { getObservedHolidays, toDateKey } from './holidays';
 import { calculateBarBreakdown } from './barChart';
 import { computeEffectiveBalance } from './effectiveBalance';
 import { detectOverdueExpenses } from './overdueDetector';
-import { calculateFastestDate, validateContribution, fastestDateFromDays, findFirstSavableDate } from './savings';
+import { calculateFastestDate, validateContribution, findFirstSavableDate } from './savings';
 import { computeSnapshot } from './snapshot';
 import { planDeficit, simulateCuts, autoSelectCuts, findRestorable } from './deficit';
 import { computeSavingsAccrual } from './savingsAccrual';
